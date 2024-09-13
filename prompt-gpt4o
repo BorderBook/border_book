@@ -1,0 +1,11 @@
+Generate a high quality design document that can be used by our project team to design the software described below. It should be complete and usable as the sole design documentation to get our team to complete our project.
+
+--
+
+We create mobile application  using flutter platform/framework for mobile and Amazon EC2 lambda for server and MongoDB cloud version for database.
+Idea behind it is to avoid people to stay in long queues on the border. instead they book a time (average time from available time slots), and system will notify them an hour before they must come to pass border.
+
+system will consist of 3 interfaces:
+1) book a time. user enters his data: FirstName, LastName, birthdate; selects time from available slots. system gives user an order number (autoincremented with each new booking). and QR code with hist data (name, birthdate, time) encoded in this QR code and also I want encode in QR-code an unique random security code, which also will be saved to database and will guarantee that code is valid and noone can fake it (we can use mongodb row id for that. its unique and hard to fake)
+2) QR code checking interface. everyone can scan qrcode using this app and decode user information encoded in it
+3) border manager interface: only border personal have access to this interface. they can enter how many people they are ready to accept (15 maximum). they mark processed user using QR-code or order number
