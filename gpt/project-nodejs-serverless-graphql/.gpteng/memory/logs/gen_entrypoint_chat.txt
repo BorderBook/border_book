@@ -1,0 +1,700 @@
+
+2024-09-14T22:27:41.113165
+================================ System Message ================================
+
+You will get information about a codebase that is currently on disk in the current folder.
+The user will ask you to write a script that runs the code in a specific way.
+You will answer with code blocks that include all the necessary terminal commands.
+Do not install globally. Do not use sudo.
+Do not explain the code, just give the commands.
+Do not use placeholders, use example values (like . for a folder argument) if necessary.
+
+
+================================ Human Message =================================
+
+
+        Make a unix script that
+        a) installs dependencies
+        b) runs all necessary parts of the codebase (in parallel if necessary)
+        
+Information about the codebase:
+
+```
+File: package.json
+1 {
+2   "name": "border-crossing-queue-management",
+3   "version": "1.0.0",
+4   "description": "A border crossing queue management system using GraphQL, AWS Lambda, and MongoDB.",
+5   "main": "index.js",
+6   "scripts": {
+7     "start": "node index.js",
+8     "deploy": "serverless deploy"
+9   },
+10   "dependencies": {
+11     "apollo-server-lambda": "^2.25.2",
+12     "graphql": "^15.5.0",
+13     "mongoose": "^5.12.3",
+14     "jsonwebtoken": "^8.5.1",
+15     "serverless": "^2.37.2",
+16     "serverless-offline": "^6.8.0"
+17   },
+18   "devDependencies": {
+19     "eslint": "^7.23.0"
+20   },
+21   "author": "Your Name",
+22   "license": "ISC"
+23 }
+
+File: serverless.yml
+1 service: border-crossing-queue-management
+2 
+3 provider:
+4   name: aws
+5   runtime: nodejs14.x
+6   region: us-east-1
+7 
+8 functions:
+9   graphql:
+10     handler: index.handler
+11     events:
+12       - http:
+13           path: graphql
+14           method: post
+15       - http:
+16           path: graphql
+17           method: get
+18 
+19 plugins:
+20   - serverless-offline
+21 
+22 custom:
+23   serverless-offline:
+24     port: 3000
+
+File: src/db.js
+1 const mongoose = require('mongoose');
+2 
+3 const connectDB = async () => {
+4   try {
+5     await mongoose.connect(process.env.MONGODB_URI, {
+6       useNewUrlParser: true,
+7       useUnifiedTopology: true,
+8       useFindAndModify: false,
+9       useCreateIndex: true
+10     });
+11     console.log('MongoDB connected');
+12   } catch (err) {
+13     console.error(err.message);
+14     process.exit(1);
+15   }
+16 };
+17 
+18 module.exports = connectDB;
+
+File: src/schema.js
+1 const { gql } = require('apollo-server-lambda');
+2 
+3 const typeDefs = gql`
+4   type Booking {
+5     id: ID!
+6     firstName: String!
+7     lastName: String!
+8     birthdate: String!
+9     selectedTime: String!
+10     orderNumber: Int!
+11     processed: Boolean!
+12   }
+13 
+14   type Capacity {
+15     date: String!
+16     maxCapacity: Int!
+17     currentCount: Int!
+18   }
+19 
+20   type Query {
+21     validateBooking(securityCode: ID!): Booking
+22   }
+23 
+24   type Mutation {
+25     createBooking(firstName: String!, lastName: String!, birthdate: String!, selectedTime: String!): Booking
+26     processBooking(orderNumber: Int!, capacityCount: Int!): String
+27   }
+28 `;
+29 
+30 module.exports = typeDefs;
+
+File: src/resolvers.js
+1 const { Booking, Capacity } = require('./models');
+2 const { ApolloError } = require('apollo-server-lambda');
+3 const { generateQRCode } = require('./utils');
+4 
+5 const resolvers = {
+6   Query: {
+7     validateBooking: async (_, { securityCode }) => {
+8       try {
+9         const booking = await Booking.findById(securityCode);
+10         if (!booking) {
+11           throw new ApolloError('Booking not found');
+12         }
+13         return booking;
+14       } catch (err) {
+15         throw new ApolloError(err.message);
+16       }
+17     }
+18   },
+19   Mutation: {
+20     createBooking: async (_, { firstName, lastName, birthdate, selectedTime }) => {
+21       try {
+22         const orderNumber = await Booking.countDocuments() + 1;
+23         const booking = new Booking({
+24           firstName,
+25           lastName,
+26           birthdate,
+27           selectedTime,
+28           orderNumber,
+29           processed: false
+30         });
+31         await booking.save();
+32         const qrCode = await generateQRCode(booking);
+33         return { ...booking._doc, qrCode };
+34       } catch (err) {
+35         throw new ApolloError(err.message);
+36       }
+37     },
+38     processBooking: async (_, { orderNumber, capacityCount }) => {
+39       try {
+40         const booking = await Booking.findOne({ orderNumber });
+41         if (!booking) {
+42           throw new ApolloError('Booking not found');
+43         }
+44         booking.processed = true;
+45         await booking.save();
+46 
+47         const today = new Date().toISOString().split('T')[0];
+48         let capacity = await Capacity.findOne({ date: today });
+49         if (!capacity) {
+50           capacity = new Capacity({ date: today, maxCapacity: capacityCount, currentCount: 0 });
+51         }
+52         capacity.currentCount += 1;
+53         await capacity.save();
+54 
+55         return 'Booking processed successfully';
+56       } catch (err) {
+57         throw new ApolloError(err.message);
+58       }
+59     }
+60   }
+61 };
+62 
+63 module.exports = resolvers;
+
+File: src/models/Booking.js
+1 const mongoose = require('mongoose');
+2 
+3 const BookingSchema = new mongoose.Schema({
+4   firstName: { type: String, required: true },
+5   lastName: { type: String, required: true },
+6   birthdate: { type: Date, required: true },
+7   selectedTime: { type: Date, required: true },
+8   orderNumber: { type: Number, required: true, unique: true },
+9   processed: { type: Boolean, default: false }
+10 });
+11 
+12 module.exports = mongoose.model('Booking', BookingSchema);
+
+File: src/models/Capacity.js
+1 const mongoose = require('mongoose');
+2 
+3 const CapacitySchema = new mongoose.Schema({
+4   date: { type: Date, required: true, unique: true },
+5   maxCapacity: { type: Number, required: true },
+6   currentCount: { type: Number, required: true, default: 0 }
+7 });
+8 
+9 module.exports = mongoose.model('Capacity', CapacitySchema);
+
+File: src/models/index.js
+1 const Booking = require('./Booking');
+2 const Capacity = require('./Capacity');
+3 
+4 module.exports = { Booking, Capacity };
+
+File: src/utils.js
+1 const QRCode = require('qrcode');
+2 
+3 const generateQRCode = async (booking) => {
+4   const qrData = {
+5     id: booking._id,
+6     firstName: booking.firstName,
+7     lastName: booking.lastName,
+8     birthdate: booking.birthdate,
+9     selectedTime: booking.selectedTime,
+10     orderNumber: booking.orderNumber
+11   };
+12   return await QRCode.toDataURL(JSON.stringify(qrData));
+13 };
+14 
+15 module.exports = { generateQRCode };
+
+File: src/index.js
+1 const { ApolloServer } = require('apollo-server-lambda');
+2 const connectDB = require('./db');
+3 const typeDefs = require('./schema');
+4 const resolvers = require('./resolvers');
+5 
+6 connectDB();
+7 
+8 const server = new ApolloServer({
+9   typeDefs,
+10   resolvers,
+11   context: ({ event, context }) => ({
+12     headers: event.headers,
+13     functionName: context.functionName,
+14     event,
+15     context
+16   }),
+17   playground: true,
+18   introspection: true
+19 });
+20 
+21 exports.handler = server.createHandler({
+22   cors: {
+23     origin: '*',
+24     credentials: true
+25   }
+26 });
+
+File: pubspec.yaml
+1 name: border_crossing_queue_management
+2 description: A border crossing queue management system mobile app.
+3 
+4 version: 1.0.0+1
+5 
+6 environment:
+7   sdk: ">=2.12.0 <3.0.0"
+8 
+9 dependencies:
+10   flutter:
+11     sdk: flutter
+12   graphql_flutter: ^5.0.0
+13   qr_flutter: ^4.0.0
+14   provider: ^5.0.0
+15 
+16 dev_dependencies:
+17   flutter_test:
+18     sdk: flutter
+19 
+20 flutter:
+21   uses-material-design: true
+
+File: lib/graphql_client.dart
+1 import 'package:graphql_flutter/graphql_flutter.dart';
+2 
+3 class GraphQLConfig {
+4   static HttpLink httpLink = HttpLink("YOUR_AWS_LAMBDA_GRAPHQL_ENDPOINT");
+5 
+6   static ValueNotifier<GraphQLClient> client = ValueNotifier(
+7     GraphQLClient(
+8       link: httpLink,
+9       cache: GraphQLCache(store: InMemoryStore()),
+10     ),
+11   );
+12 
+13   static GraphQLClient clientToQuery() {
+14     return GraphQLClient(
+15       link: httpLink,
+16       cache: GraphQLCache(store: InMemoryStore()),
+17     );
+18   }
+19 }
+
+File: lib/screens/booking_screen.dart
+1 import 'package:flutter/material.dart';
+2 import 'package:graphql_flutter/graphql_flutter.dart';
+3 import 'package:qr_flutter/qr_flutter.dart';
+4 import '../graphql_client.dart';
+5 
+6 class BookingScreen extends StatefulWidget {
+7   @override
+8   _BookingScreenState createState() => _BookingScreenState();
+9 }
+10 
+11 class _BookingScreenState extends State<BookingScreen> {
+12   final _formKey = GlobalKey<FormState>();
+13   String firstName = '';
+14   String lastName = '';
+15   String birthdate = '';
+16   String selectedTime = '';
+17   String qrCodeData = '';
+18 
+19   void _createBooking() async {
+20     final client = GraphQLConfig.clientToQuery();
+21     final String createBookingMutation = """
+22       mutation CreateBooking(\$firstName: String!, \$lastName: String!, \$birthdate: String!, \$selectedTime: String!) {
+23         createBooking(firstName: \$firstName, lastName: \$lastName, birthdate: \$birthdate, selectedTime: \$selectedTime) {
+24           id
+25           firstName
+26           lastName
+27           birthdate
+28           selectedTime
+29           orderNumber
+30           processed
+31         }
+32       }
+33     """;
+34 
+35     final result = await client.mutate(
+36       MutationOptions(
+37         document: gql(createBookingMutation),
+38         variables: {
+39           'firstName': firstName,
+40           'lastName': lastName,
+41           'birthdate': birthdate,
+42           'selectedTime': selectedTime,
+43         },
+44       ),
+45     );
+46 
+47     if (result.hasException) {
+48       print(result.exception.toString());
+49     } else {
+50       setState(() {
+51         qrCodeData = result.data['createBooking']['id'];
+52       });
+53     }
+54   }
+55 
+56   @override
+57   Widget build(BuildContext context) {
+58     return Scaffold(
+59       appBar: AppBar(
+60         title: Text('Booking Screen'),
+61       ),
+62       body: Form(
+63         key: _formKey,
+64         child: Padding(
+65           padding: const EdgeInsets.all(16.0),
+66           child: Column(
+67             children: [
+68               TextFormField(
+69                 decoration: InputDecoration(labelText: 'First Name'),
+70                 onChanged: (value) {
+71                   setState(() {
+72                     firstName = value;
+73                   });
+74                 },
+75               ),
+76               TextFormField(
+77                 decoration: InputDecoration(labelText: 'Last Name'),
+78                 onChanged: (value) {
+79                   setState(() {
+80                     lastName = value;
+81                   });
+82                 },
+83               ),
+84               TextFormField(
+85                 decoration: InputDecoration(labelText: 'Birthdate'),
+86                 onChanged: (value) {
+87                   setState(() {
+88                     birthdate = value;
+89                   });
+90                 },
+91               ),
+92               TextFormField(
+93                 decoration: InputDecoration(labelText: 'Selected Time'),
+94                 onChanged: (value) {
+95                   setState(() {
+96                     selectedTime = value;
+97                   });
+98                 },
+99               ),
+100               SizedBox(height: 20),
+101               ElevatedButton(
+102                 onPressed: _createBooking,
+103                 child: Text('Create Booking'),
+104               ),
+105               SizedBox(height: 20),
+106               if (qrCodeData.isNotEmpty)
+107                 QrImage(
+108                   data: qrCodeData,
+109                   version: QrVersions.auto,
+110                   size: 200.0,
+111                 ),
+112             ],
+113           ),
+114         ),
+115       ),
+116     );
+117   }
+118 }
+
+File: lib/screens/qr_validation_screen.dart
+1 import 'package:flutter/material.dart';
+2 import 'package:graphql_flutter/graphql_flutter.dart';
+3 import 'package:qr_flutter/qr_flutter.dart';
+4 import '../graphql_client.dart';
+5 
+6 class QRValidationScreen extends StatefulWidget {
+7   @override
+8   _QRValidationScreenState createState() => _QRValidationScreenState();
+9 }
+10 
+11 class _QRValidationScreenState extends State<QRValidationScreen> {
+12   final _formKey = GlobalKey<FormState>();
+13   String qrCodeData = '';
+14   String bookingDetails = '';
+15 
+16   void _validateBooking() async {
+17     final client = GraphQLConfig.clientToQuery();
+18     final String validateBookingQuery = """
+19       query ValidateBooking(\$securityCode: ID!) {
+20         validateBooking(securityCode: \$securityCode) {
+21           id
+22           firstName
+23           lastName
+24           birthdate
+25           selectedTime
+26           orderNumber
+27           processed
+28         }
+29       }
+30     """;
+31 
+32     final result = await client.query(
+33       QueryOptions(
+34         document: gql(validateBookingQuery),
+35         variables: {
+36           'securityCode': qrCodeData,
+37         },
+38       ),
+39     );
+40 
+41     if (result.hasException) {
+42       print(result.exception.toString());
+43     } else {
+44       setState(() {
+45         bookingDetails = result.data['validateBooking'].toString();
+46       });
+47     }
+48   }
+49 
+50   @override
+51   Widget build(BuildContext context) {
+52     return Scaffold(
+53       appBar: AppBar(
+54         title: Text('QR Validation Screen'),
+55       ),
+56       body: Form(
+57         key: _formKey,
+58         child: Padding(
+59           padding: const EdgeInsets.all(16.0),
+60           child: Column(
+61             children: [
+62               TextFormField(
+63                 decoration: InputDecoration(labelText: 'QR Code Data'),
+64                 onChanged: (value) {
+65                   setState(() {
+66                     qrCodeData = value;
+67                   });
+68                 },
+69               ),
+70               SizedBox(height: 20),
+71               ElevatedButton(
+72                 onPressed: _validateBooking,
+73                 child: Text('Validate Booking'),
+74               ),
+75               SizedBox(height: 20),
+76               if (bookingDetails.isNotEmpty)
+77                 Text(
+78                   bookingDetails,
+79                   style: TextStyle(fontSize: 16),
+80                 ),
+81             ],
+82           ),
+83         ),
+84       ),
+85     );
+86   }
+87 }
+
+File: lib/screens/border_manager_screen.dart
+1 import 'package:flutter/material.dart';
+2 import 'package:graphql_flutter/graphql_flutter.dart';
+3 import '../graphql_client.dart';
+4 
+5 class BorderManagerScreen extends StatefulWidget {
+6   @override
+7   _BorderManagerScreenState createState() => _BorderManagerScreenState();
+8 }
+9 
+10 class _BorderManagerScreenState extends State<BorderManagerScreen> {
+11   final _formKey = GlobalKey<FormState>();
+12   String orderNumber = '';
+13   int capacityCount = 0;
+14   String resultMessage = '';
+15 
+16   void _processBooking() async {
+17     final client = GraphQLConfig.clientToQuery();
+18     final String processBookingMutation = """
+19       mutation ProcessBooking(\$orderNumber: Int!, \$capacityCount: Int!) {
+20         processBooking(orderNumber: \$orderNumber, capacityCount: \$capacityCount)
+21       }
+22     """;
+23 
+24     final result = await client.mutate(
+25       MutationOptions(
+26         document: gql(processBookingMutation),
+27         variables: {
+28           'orderNumber': int.parse(orderNumber),
+29           'capacityCount': capacityCount,
+30         },
+31       ),
+32     );
+33 
+34     if (result.hasException) {
+35       print(result.exception.toString());
+36     } else {
+37       setState(() {
+38         resultMessage = result.data['processBooking'];
+39       });
+40     }
+41   }
+42 
+43   @override
+44   Widget build(BuildContext context) {
+45     return Scaffold(
+46       appBar: AppBar(
+47         title: Text('Border Manager Screen'),
+48       ),
+49       body: Form(
+50         key: _formKey,
+51         child: Padding(
+52           padding: const EdgeInsets.all(16.0),
+53           child: Column(
+54             children: [
+55               TextFormField(
+56                 decoration: InputDecoration(labelText: 'Order Number'),
+57                 onChanged: (value) {
+58                   setState(() {
+59                     orderNumber = value;
+60                   });
+61                 },
+62               ),
+63               TextFormField(
+64                 decoration: InputDecoration(labelText: 'Capacity Count'),
+65                 onChanged: (value) {
+66                   setState(() {
+67                     capacityCount = int.parse(value);
+68                   });
+69                 },
+70               ),
+71               SizedBox(height: 20),
+72               ElevatedButton(
+73                 onPressed: _processBooking,
+74                 child: Text('Process Booking'),
+75               ),
+76               SizedBox(height: 20),
+77               if (resultMessage.isNotEmpty)
+78                 Text(
+79                   resultMessage,
+80                   style: TextStyle(fontSize: 16),
+81                 ),
+82             ],
+83           ),
+84         ),
+85       ),
+86     );
+87   }
+88 }
+
+File: lib/main.dart
+1 import 'package:flutter/material.dart';
+2 import 'package:graphql_flutter/graphql_flutter.dart';
+3 import 'screens/booking_screen.dart';
+4 import 'screens/qr_validation_screen.dart';
+5 import 'screens/border_manager_screen.dart';
+6 import 'graphql_client.dart';
+7 
+8 void main() {
+9   runApp(MyApp());
+10 }
+11 
+12 class MyApp extends StatelessWidget {
+13   @override
+14   Widget build(BuildContext context) {
+15     return GraphQLProvider(
+16       client: GraphQLConfig.client,
+17       child: CacheProvider(
+18         child: MaterialApp(
+19           title: 'Border Crossing Queue Management',
+20           theme: ThemeData(
+21             primarySwatch: Colors.blue,
+22           ),
+23           home: HomeScreen(),
+24         ),
+25       ),
+26     );
+27   }
+28 }
+29 
+30 class HomeScreen extends StatelessWidget {
+31   @override
+32   Widget build(BuildContext context) {
+33     return Scaffold(
+34       appBar: AppBar(
+35         title: Text('Border Crossing Queue Management'),
+36       ),
+37       body: Center(
+38         child: Column(
+39           mainAxisAlignment: MainAxisAlignment.center,
+40           children: <Widget>[
+41             ElevatedButton(
+42               onPressed: () {
+43                 Navigator.push(
+44                   context,
+45                   MaterialPageRoute(builder: (context) => BookingScreen()),
+46                 );
+47               },
+48               child: Text('Booking Screen'),
+49             ),
+50             ElevatedButton(
+51               onPressed: () {
+52                 Navigator.push(
+53                   context,
+54                   MaterialPageRoute(builder: (context) => QRValidationScreen()),
+55                 );
+56               },
+57               child: Text('QR Validation Screen'),
+58             ),
+59             ElevatedButton(
+60               onPressed: () {
+61                 Navigator.push(
+62                   context,
+63                   MaterialPageRoute(builder: (context) => BorderManagerScreen()),
+64                 );
+65               },
+66               child: Text('Border Manager Screen'),
+67             ),
+68           ],
+69         ),
+70       ),
+71     );
+72   }
+73 }
+
+```
+
+================================== Ai Message ==================================
+
+```sh
+#!/bin/bash
+
+# Install Node.js dependencies
+npm install
+
+# Install Flutter dependencies
+flutter pub get
+
+# Run the serverless offline and Flutter app in parallel
+npx serverless offline & flutter run
+```

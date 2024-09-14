@@ -1,0 +1,12 @@
+name: border_crossing_queue_management
+description: A mobile app for managing border crossing queues.
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^0.13.3
+  qr_code_scanner: ^0.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

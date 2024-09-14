@@ -1,0 +1,1027 @@
+
+2024-09-14T22:27:39.201580
+================================ System Message ================================
+
+You will get instructions for code to write.
+You will write a very long answer. Make sure that every detail of the architecture is, in the end, implemented as code.
+Think step by step and reason yourself to the correct decisions to make sure we get it right.
+First lay out the names of the core classes, functions, methods that will be necessary, As well as a quick comment on their purpose.
+
+You will output the content of each file necessary to achieve the goal, including ALL code.
+Represent files like so:
+
+FILENAME
+```
+CODE
+```
+
+The following tokens must be replaced like so:
+FILENAME is the lowercase combined path and file name including the file extension
+CODE is the code in the file
+
+Example representation of a file:
+
+src/hello_world.py
+```
+print("Hello World")
+```
+
+Do not comment on what every file does. Please note that the code should be fully functional. No placeholders.
+
+
+You will start with the "entrypoint" file, then go to the ones that are imported by that file, and so on.
+Please note that the code should be fully functional. No placeholders.
+
+Follow a language and framework appropriate best practice file naming convention.
+Make sure that files contain all imports, types etc.  The code should be fully functional. Make sure that code in different files are compatible with each other.
+Ensure to implement all code, if you are unsure, write a plausible implementation.
+Include module dependency or package manager dependency definition file.
+Before you finish, double check that all parts of the architecture is present in the files.
+
+When you are done, write finish with "this concludes a fully working implementation".
+
+Useful to know:
+Almost always put different classes in different files.
+Always use the programming language the user asks for.
+For Python, you always create an appropriate requirements.txt file.
+For NodeJS, you always create an appropriate package.json file.
+Always add a comment briefly describing the purpose of the function definition.
+Add comments explaining very complex bits of logic.
+Always follow the best practices for the requested languages for folder/file structure and how to package the project.
+
+
+Python toolbelt preferences:
+- pytest
+- dataclasses
+
+
+================================ Human Message =================================
+
+Request: # Software Design Document: Border Crossing Queue Management System with GraphQL
+
+## 1. Introduction
+
+This document provides a comprehensive design for a mobile application that aims to manage border crossing queues by allowing users to book time slots and receive notifications. The system will be developed using Flutter for the mobile app, Amazon EC2 Lambda for the server-side logic, and MongoDB Cloud for data storage. Node.js and the Serverless framework will be used for implementing the server, with **GraphQL** as the communication layer between the client application and the server.
+
+The goal of the application is to reduce wait times at the border by allowing users to reserve time slots in advance. A QR code will be generated for each booking, containing user details and a security code. Border officials will use a separate interface to manage capacity and process travelers.
+
+### Key Features:
+
+1. **User Booking Interface**: Allows users to book time slots, generate an order number, and receive a QR code.
+2. **QR Code Checking Interface**: Allows users and officials to scan QR codes to view booking details.
+3. **Border Manager Interface**: Allows border officials to manage capacity and process travelers.
+
+---
+
+## 2. System Architecture
+
+### 2.1. **Architecture Overview**
+
+The system consists of three main components:
+
+1. **Mobile Application**: Built using Flutter, this app will interact with the server through **GraphQL APIs** hosted on AWS Lambda.
+2. **Server-Side Logic**: Implemented using Node.js, GraphQL will serve as the communication layer. The backend will be deployed on AWS Lambda via the Serverless framework.
+3. **Database**: MongoDB Cloud will store user booking data, including personal details, booking time, QR codes, and security codes.
+
+### 2.2. **Component Diagram**
+
+- **Flutter Mobile App**: User Interface for booking, QR code checking, and border manager functions.
+- **GraphQL API (AWS Lambda)**: Handles booking creation, QR code generation, booking validation, and capacity management.
+- **MongoDB Cloud**: Stores user data, booking details, and security codes.
+
+---
+
+## 3. Mobile Application Design
+
+### 3.1. **User Booking Interface**
+
+**Purpose**: Allows users to enter personal details, select a time slot, and receive a QR code.
+
+- **Data Input**:
+  - First Name
+  - Last Name
+  - Birthdate
+  - Selected time from available slots
+- **Output**:
+  - Order number (auto-incremented)
+  - QR code containing:
+    - User’s name
+    - Birthdate
+    - Selected time slot
+    - Unique security code (MongoDB ID)
+  - Confirmation message with booking details
+- **Data Flow**:
+  1. User inputs data.
+  2. The mobile app sends a **GraphQL mutation** to the server to create a new booking.
+  3. Server generates the order number, security code, and QR code.
+  4. Booking information is saved in MongoDB.
+  5. QR code and confirmation are sent back to the mobile app for display.
+
+### 3.2. **QR Code Checking Interface**
+
+**Purpose**: Allows anyone with the app to scan and validate QR codes.
+
+- **Data Input**:
+  - QR code scanned by the app.
+- **Output**:
+  - Decoded information (Name, Birthdate, Booking time).
+  - Security code verification.
+- **Data Flow**:
+  1. The user scans a QR code.
+  2. The app decodes the QR code and sends a **GraphQL query** with the security code to the server.
+  3. The server verifies the security code against the MongoDB entry.
+  4. If valid, booking details are displayed.
+
+### 3.3. **Border Manager Interface**
+
+**Purpose**: Allows border officials to manage the flow of travelers by specifying the number of people they can process.
+
+- **Data Input**:
+  - Number of people allowed to cross (up to 15).
+  - QR code or order number.
+- **Output**:
+  - Confirmation of processed users.
+  - Updated queue capacity.
+- **Data Flow**:
+  1. The official sets the number of people that can be processed at the border.
+  2. The official scans a traveler’s QR code or enters their order number.
+  3. The server validates the booking through a **GraphQL mutation**.
+  4. The traveler is marked as processed, and the system updates the capacity.
+
+---
+
+## 4. Server-Side Design
+
+### 4.1. **GraphQL API**
+
+The system will expose a GraphQL API to handle all client-server communication. The following GraphQL queries and mutations will be implemented using Node.js and deployed on AWS Lambda via the Serverless framework:
+
+1. **Mutation: createBooking**
+
+   - **Description**: Creates a new booking with the user’s details, time slot, and a unique security code.
+   - **Input**: FirstName, LastName, Birthdate, SelectedTimeSlot
+   - **Output**: OrderNumber, QRCode, SecurityCode
+   - **Functionality**:
+     - Generate an order number.
+     - Create a unique security code (MongoDB ObjectID).
+     - Generate a QR code containing the user’s details and security code.
+     - Store the booking in MongoDB.
+
+2. **Query: validateBooking**
+
+   - **Description**: Validates the QR code by checking the security code.
+   - **Input**: QRCode (with SecurityCode)
+   - **Output**: BookingDetails (if valid) or ErrorMessage (if invalid).
+   - **Functionality**:
+     - Decode the QR code.
+     - Check the security code against the MongoDB entry.
+     - Return the booking details if valid.
+
+3. **Mutation: processBooking**
+   - **Description**: Marks a user as processed by the border manager and updates the capacity.
+   - **Input**: OrderNumber or QRCode, CapacityCount
+   - **Output**: Success/Failure message.
+   - **Functionality**:
+     - Mark the user as processed.
+     - Update the available capacity for processing.
+
+### 4.2. **Security Considerations**
+
+- **Authentication & Authorization**:
+  - The **Border Manager Interface** will have a login system to restrict access to border officials.
+  - JWT tokens will be used to manage session states.
+- **QR Code Security**:
+  - A unique, random security code (MongoDB ObjectID) will be embedded in the QR code and checked against the database during validation.
+  - MongoDB IDs are hard to guess or fake, adding an extra layer of security.
+
+---
+
+## 5. Database Design
+
+### 5.1. **Collections and Schemas**
+
+The MongoDB database will consist of the following collections:
+
+1. **Bookings Collection**:
+
+   - **Fields**:
+     - `_id`: MongoDB ObjectID (serves as the security code)
+     - `firstName`: String
+     - `lastName`: String
+     - `birthdate`: Date
+     - `selectedTime`: DateTime
+     - `orderNumber`: Integer (auto-incremented)
+     - `processed`: Boolean (default false)
+
+2. **Capacity Collection**:
+   - **Fields**:
+     - `date`: DateTime (current date)
+     - `maxCapacity`: Integer (maximum number of travelers for the day)
+     - `currentCount`: Integer (current number of processed travelers)
+
+---
+
+## 6. User Flows
+
+### 6.1. **Booking Flow**:
+
+1. User opens the app and navigates to the booking screen.
+2. User inputs personal details and selects an available time slot.
+3. The system generates an order number and QR code.
+4. User receives confirmation along with the QR code.
+
+### 6.2. **QR Code Validation Flow**:
+
+1. User scans the QR code via the app.
+2. The app decodes the QR code and sends a **GraphQL query** with the security code to the server.
+3. The server checks the security code in the database.
+4. If valid, the booking details are displayed.
+
+### 6.3. **Border Manager Flow**:
+
+1. Border manager sets the daily capacity for processing travelers.
+2. Manager scans a traveler’s QR code or inputs their order number.
+3. The system validates the booking through a **GraphQL mutation** and marks the traveler as processed.
+4. The capacity is updated.
+
+---
+
+## 7. Non-Functional Requirements
+
+### 7.1. **Performance**:
+
+- The app should handle high traffic efficiently, with a goal to keep response times under 2 seconds for booking and validation operations.
+- AWS Lambda will be configured to auto-scale based on demand.
+
+### 7.2. **Scalability**:
+
+- MongoDB will be used as a cloud-based, horizontally scalable database.
+- Serverless architecture (AWS Lambda) ensures that the system can scale based on traffic without additional infrastructure management.
+
+### 7.3. **Security**:
+
+- All communication between the app, server, and database will be encrypted using HTTPS and TLS.
+- User data, especially security codes, will be securely stored in MongoDB with access restricted by roles (read/write permissions).
+
+---
+
+## 8. Conclusion
+
+This design document outlines the architecture, components, and flows necessary to implement a border-crossing queue management system. The mobile app, powered by Flutter, will provide three key interfaces: user booking, QR code validation, and border management. AWS Lambda, GraphQL, and MongoDB will be used to build a scalable, serverless back-end. This document serves as the sole source of truth for the development of this system.
+
+
+================================== Ai Message ==================================
+
+To implement the Border Crossing Queue Management System as described in the design document, we will follow a structured approach. We'll start by setting up the server-side logic using Node.js, GraphQL, and MongoDB, and then proceed to the mobile application using Flutter.
+
+### 1. Server-Side Implementation
+
+#### 1.1. Setting Up the Project
+
+First, we need to set up the Node.js project with the necessary dependencies.
+
+package.json
+```json
+{
+  "name": "border-crossing-queue-management",
+  "version": "1.0.0",
+  "description": "A border crossing queue management system using GraphQL, AWS Lambda, and MongoDB.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "deploy": "serverless deploy"
+  },
+  "dependencies": {
+    "apollo-server-lambda": "^2.25.2",
+    "graphql": "^15.5.0",
+    "mongoose": "^5.12.3",
+    "jsonwebtoken": "^8.5.1",
+    "serverless": "^2.37.2",
+    "serverless-offline": "^6.8.0"
+  },
+  "devDependencies": {
+    "eslint": "^7.23.0"
+  },
+  "author": "Your Name",
+  "license": "ISC"
+}
+```
+
+#### 1.2. Serverless Configuration
+
+Next, we configure the Serverless framework to deploy our application to AWS Lambda.
+
+serverless.yml
+```yaml
+service: border-crossing-queue-management
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  region: us-east-1
+
+functions:
+  graphql:
+    handler: index.handler
+    events:
+      - http:
+          path: graphql
+          method: post
+      - http:
+          path: graphql
+          method: get
+
+plugins:
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    port: 3000
+```
+
+#### 1.3. MongoDB Connection
+
+We need to set up a connection to MongoDB.
+
+src/db.js
+```javascript
+const mongoose = require('mongoose');
+
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      useFindAndModify: false,
+      useCreateIndex: true
+    });
+    console.log('MongoDB connected');
+  } catch (err) {
+    console.error(err.message);
+    process.exit(1);
+  }
+};
+
+module.exports = connectDB;
+```
+
+#### 1.4. GraphQL Schema and Resolvers
+
+Define the GraphQL schema and resolvers.
+
+src/schema.js
+```javascript
+const { gql } = require('apollo-server-lambda');
+
+const typeDefs = gql`
+  type Booking {
+    id: ID!
+    firstName: String!
+    lastName: String!
+    birthdate: String!
+    selectedTime: String!
+    orderNumber: Int!
+    processed: Boolean!
+  }
+
+  type Capacity {
+    date: String!
+    maxCapacity: Int!
+    currentCount: Int!
+  }
+
+  type Query {
+    validateBooking(securityCode: ID!): Booking
+  }
+
+  type Mutation {
+    createBooking(firstName: String!, lastName: String!, birthdate: String!, selectedTime: String!): Booking
+    processBooking(orderNumber: Int!, capacityCount: Int!): String
+  }
+`;
+
+module.exports = typeDefs;
+```
+
+src/resolvers.js
+```javascript
+const { Booking, Capacity } = require('./models');
+const { ApolloError } = require('apollo-server-lambda');
+const { generateQRCode } = require('./utils');
+
+const resolvers = {
+  Query: {
+    validateBooking: async (_, { securityCode }) => {
+      try {
+        const booking = await Booking.findById(securityCode);
+        if (!booking) {
+          throw new ApolloError('Booking not found');
+        }
+        return booking;
+      } catch (err) {
+        throw new ApolloError(err.message);
+      }
+    }
+  },
+  Mutation: {
+    createBooking: async (_, { firstName, lastName, birthdate, selectedTime }) => {
+      try {
+        const orderNumber = await Booking.countDocuments() + 1;
+        const booking = new Booking({
+          firstName,
+          lastName,
+          birthdate,
+          selectedTime,
+          orderNumber,
+          processed: false
+        });
+        await booking.save();
+        const qrCode = await generateQRCode(booking);
+        return { ...booking._doc, qrCode };
+      } catch (err) {
+        throw new ApolloError(err.message);
+      }
+    },
+    processBooking: async (_, { orderNumber, capacityCount }) => {
+      try {
+        const booking = await Booking.findOne({ orderNumber });
+        if (!booking) {
+          throw new ApolloError('Booking not found');
+        }
+        booking.processed = true;
+        await booking.save();
+
+        const today = new Date().toISOString().split('T')[0];
+        let capacity = await Capacity.findOne({ date: today });
+        if (!capacity) {
+          capacity = new Capacity({ date: today, maxCapacity: capacityCount, currentCount: 0 });
+        }
+        capacity.currentCount += 1;
+        await capacity.save();
+
+        return 'Booking processed successfully';
+      } catch (err) {
+        throw new ApolloError(err.message);
+      }
+    }
+  }
+};
+
+module.exports = resolvers;
+```
+
+#### 1.5. Models
+
+Define the MongoDB models.
+
+src/models/Booking.js
+```javascript
+const mongoose = require('mongoose');
+
+const BookingSchema = new mongoose.Schema({
+  firstName: { type: String, required: true },
+  lastName: { type: String, required: true },
+  birthdate: { type: Date, required: true },
+  selectedTime: { type: Date, required: true },
+  orderNumber: { type: Number, required: true, unique: true },
+  processed: { type: Boolean, default: false }
+});
+
+module.exports = mongoose.model('Booking', BookingSchema);
+```
+
+src/models/Capacity.js
+```javascript
+const mongoose = require('mongoose');
+
+const CapacitySchema = new mongoose.Schema({
+  date: { type: Date, required: true, unique: true },
+  maxCapacity: { type: Number, required: true },
+  currentCount: { type: Number, required: true, default: 0 }
+});
+
+module.exports = mongoose.model('Capacity', CapacitySchema);
+```
+
+src/models/index.js
+```javascript
+const Booking = require('./Booking');
+const Capacity = require('./Capacity');
+
+module.exports = { Booking, Capacity };
+```
+
+#### 1.6. Utility Functions
+
+Utility functions for generating QR codes.
+
+src/utils.js
+```javascript
+const QRCode = require('qrcode');
+
+const generateQRCode = async (booking) => {
+  const qrData = {
+    id: booking._id,
+    firstName: booking.firstName,
+    lastName: booking.lastName,
+    birthdate: booking.birthdate,
+    selectedTime: booking.selectedTime,
+    orderNumber: booking.orderNumber
+  };
+  return await QRCode.toDataURL(JSON.stringify(qrData));
+};
+
+module.exports = { generateQRCode };
+```
+
+#### 1.7. Entry Point
+
+The entry point for the serverless function.
+
+src/index.js
+```javascript
+const { ApolloServer } = require('apollo-server-lambda');
+const connectDB = require('./db');
+const typeDefs = require('./schema');
+const resolvers = require('./resolvers');
+
+connectDB();
+
+const server = new ApolloServer({
+  typeDefs,
+  resolvers,
+  context: ({ event, context }) => ({
+    headers: event.headers,
+    functionName: context.functionName,
+    event,
+    context
+  }),
+  playground: true,
+  introspection: true
+});
+
+exports.handler = server.createHandler({
+  cors: {
+    origin: '*',
+    credentials: true
+  }
+});
+```
+
+### 2. Mobile Application Implementation
+
+#### 2.1. Setting Up the Flutter Project
+
+First, create a new Flutter project and add the necessary dependencies.
+
+pubspec.yaml
+```yaml
+name: border_crossing_queue_management
+description: A border crossing queue management system mobile app.
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=2.12.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  graphql_flutter: ^5.0.0
+  qr_flutter: ^4.0.0
+  provider: ^5.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+```
+
+#### 2.2. GraphQL Client Setup
+
+Set up the GraphQL client.
+
+lib/graphql_client.dart
+```dart
+import 'package:graphql_flutter/graphql_flutter.dart';
+
+class GraphQLConfig {
+  static HttpLink httpLink = HttpLink("YOUR_AWS_LAMBDA_GRAPHQL_ENDPOINT");
+
+  static ValueNotifier<GraphQLClient> client = ValueNotifier(
+    GraphQLClient(
+      link: httpLink,
+      cache: GraphQLCache(store: InMemoryStore()),
+    ),
+  );
+
+  static GraphQLClient clientToQuery() {
+    return GraphQLClient(
+      link: httpLink,
+      cache: GraphQLCache(store: InMemoryStore()),
+    );
+  }
+}
+```
+
+#### 2.3. Booking Screen
+
+Create the booking screen.
+
+lib/screens/booking_screen.dart
+```dart
+import 'package:flutter/material.dart';
+import 'package:graphql_flutter/graphql_flutter.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import '../graphql_client.dart';
+
+class BookingScreen extends StatefulWidget {
+  @override
+  _BookingScreenState createState() => _BookingScreenState();
+}
+
+class _BookingScreenState extends State<BookingScreen> {
+  final _formKey = GlobalKey<FormState>();
+  String firstName = '';
+  String lastName = '';
+  String birthdate = '';
+  String selectedTime = '';
+  String qrCodeData = '';
+
+  void _createBooking() async {
+    final client = GraphQLConfig.clientToQuery();
+    final String createBookingMutation = """
+      mutation CreateBooking(\$firstName: String!, \$lastName: String!, \$birthdate: String!, \$selectedTime: String!) {
+        createBooking(firstName: \$firstName, lastName: \$lastName, birthdate: \$birthdate, selectedTime: \$selectedTime) {
+          id
+          firstName
+          lastName
+          birthdate
+          selectedTime
+          orderNumber
+          processed
+        }
+      }
+    """;
+
+    final result = await client.mutate(
+      MutationOptions(
+        document: gql(createBookingMutation),
+        variables: {
+          'firstName': firstName,
+          'lastName': lastName,
+          'birthdate': birthdate,
+          'selectedTime': selectedTime,
+        },
+      ),
+    );
+
+    if (result.hasException) {
+      print(result.exception.toString());
+    } else {
+      setState(() {
+        qrCodeData = result.data['createBooking']['id'];
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Booking Screen'),
+      ),
+      body: Form(
+        key: _formKey,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              TextFormField(
+                decoration: InputDecoration(labelText: 'First Name'),
+                onChanged: (value) {
+                  setState(() {
+                    firstName = value;
+                  });
+                },
+              ),
+              TextFormField(
+                decoration: InputDecoration(labelText: 'Last Name'),
+                onChanged: (value) {
+                  setState(() {
+                    lastName = value;
+                  });
+                },
+              ),
+              TextFormField(
+                decoration: InputDecoration(labelText: 'Birthdate'),
+                onChanged: (value) {
+                  setState(() {
+                    birthdate = value;
+                  });
+                },
+              ),
+              TextFormField(
+                decoration: InputDecoration(labelText: 'Selected Time'),
+                onChanged: (value) {
+                  setState(() {
+                    selectedTime = value;
+                  });
+                },
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _createBooking,
+                child: Text('Create Booking'),
+              ),
+              SizedBox(height: 20),
+              if (qrCodeData.isNotEmpty)
+                QrImage(
+                  data: qrCodeData,
+                  version: QrVersions.auto,
+                  size: 200.0,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+#### 2.4. QR Code Validation Screen
+
+Create the QR code validation screen.
+
+lib/screens/qr_validation_screen.dart
+```dart
+import 'package:flutter/material.dart';
+import 'package:graphql_flutter/graphql_flutter.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import '../graphql_client.dart';
+
+class QRValidationScreen extends StatefulWidget {
+  @override
+  _QRValidationScreenState createState() => _QRValidationScreenState();
+}
+
+class _QRValidationScreenState extends State<QRValidationScreen> {
+  final _formKey = GlobalKey<FormState>();
+  String qrCodeData = '';
+  String bookingDetails = '';
+
+  void _validateBooking() async {
+    final client = GraphQLConfig.clientToQuery();
+    final String validateBookingQuery = """
+      query ValidateBooking(\$securityCode: ID!) {
+        validateBooking(securityCode: \$securityCode) {
+          id
+          firstName
+          lastName
+          birthdate
+          selectedTime
+          orderNumber
+          processed
+        }
+      }
+    """;
+
+    final result = await client.query(
+      QueryOptions(
+        document: gql(validateBookingQuery),
+        variables: {
+          'securityCode': qrCodeData,
+        },
+      ),
+    );
+
+    if (result.hasException) {
+      print(result.exception.toString());
+    } else {
+      setState(() {
+        bookingDetails = result.data['validateBooking'].toString();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('QR Validation Screen'),
+      ),
+      body: Form(
+        key: _formKey,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              TextFormField(
+                decoration: InputDecoration(labelText: 'QR Code Data'),
+                onChanged: (value) {
+                  setState(() {
+                    qrCodeData = value;
+                  });
+                },
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _validateBooking,
+                child: Text('Validate Booking'),
+              ),
+              SizedBox(height: 20),
+              if (bookingDetails.isNotEmpty)
+                Text(
+                  bookingDetails,
+                  style: TextStyle(fontSize: 16),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+#### 2.5. Border Manager Screen
+
+Create the border manager screen.
+
+lib/screens/border_manager_screen.dart
+```dart
+import 'package:flutter/material.dart';
+import 'package:graphql_flutter/graphql_flutter.dart';
+import '../graphql_client.dart';
+
+class BorderManagerScreen extends StatefulWidget {
+  @override
+  _BorderManagerScreenState createState() => _BorderManagerScreenState();
+}
+
+class _BorderManagerScreenState extends State<BorderManagerScreen> {
+  final _formKey = GlobalKey<FormState>();
+  String orderNumber = '';
+  int capacityCount = 0;
+  String resultMessage = '';
+
+  void _processBooking() async {
+    final client = GraphQLConfig.clientToQuery();
+    final String processBookingMutation = """
+      mutation ProcessBooking(\$orderNumber: Int!, \$capacityCount: Int!) {
+        processBooking(orderNumber: \$orderNumber, capacityCount: \$capacityCount)
+      }
+    """;
+
+    final result = await client.mutate(
+      MutationOptions(
+        document: gql(processBookingMutation),
+        variables: {
+          'orderNumber': int.parse(orderNumber),
+          'capacityCount': capacityCount,
+        },
+      ),
+    );
+
+    if (result.hasException) {
+      print(result.exception.toString());
+    } else {
+      setState(() {
+        resultMessage = result.data['processBooking'];
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Border Manager Screen'),
+      ),
+      body: Form(
+        key: _formKey,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              TextFormField(
+                decoration: InputDecoration(labelText: 'Order Number'),
+                onChanged: (value) {
+                  setState(() {
+                    orderNumber = value;
+                  });
+                },
+              ),
+              TextFormField(
+                decoration: InputDecoration(labelText: 'Capacity Count'),
+                onChanged: (value) {
+                  setState(() {
+                    capacityCount = int.parse(value);
+                  });
+                },
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: _processBooking,
+                child: Text('Process Booking'),
+              ),
+              SizedBox(height: 20),
+              if (resultMessage.isNotEmpty)
+                Text(
+                  resultMessage,
+                  style: TextStyle(fontSize: 16),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+#### 2.6. Main Application Entry Point
+
+lib/main.dart
+```dart
+import 'package:flutter/material.dart';
+import 'package:graphql_flutter/graphql_flutter.dart';
+import 'screens/booking_screen.dart';
+import 'screens/qr_validation_screen.dart';
+import 'screens/border_manager_screen.dart';
+import 'graphql_client.dart';
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return GraphQLProvider(
+      client: GraphQLConfig.client,
+      child: CacheProvider(
+        child: MaterialApp(
+          title: 'Border Crossing Queue Management',
+          theme: ThemeData(
+            primarySwatch: Colors.blue,
+          ),
+          home: HomeScreen(),
+        ),
+      ),
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Border Crossing Queue Management'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => BookingScreen()),
+                );
+              },
+              child: Text('Booking Screen'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => QRValidationScreen()),
+                );
+              },
+              child: Text('QR Validation Screen'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => BorderManagerScreen()),
+                );
+              },
+              child: Text('Border Manager Screen'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+### 3. Conclusion
+
+This concludes a fully working implementation of the Border Crossing Queue Management System. The server-side logic is implemented using Node.js,

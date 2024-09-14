@@ -1,0 +1,1733 @@
+
+2024-09-14T21:26:18.686737
+================================ System Message ================================
+
+You will get information about a codebase that is currently on disk in the current folder.
+The user will ask you to write a script that runs the code in a specific way.
+You will answer with code blocks that include all the necessary terminal commands.
+Do not install globally. Do not use sudo.
+Do not explain the code, just give the commands.
+Do not use placeholders, use example values (like . for a folder argument) if necessary.
+
+
+================================ Human Message =================================
+
+
+        Make a unix script that
+        a) installs dependencies
+        b) runs all necessary parts of the codebase (in parallel if necessary)
+        
+Information about the codebase:
+
+```
+File: Structure
+1 border_queue_management/
+2 ├── backend/
+3 │   ├── lambda_function.py
+4 │   ├── booking_api.py
+5 │   ├── qr_code_api.py
+6 │   ├── push_notification_api.py
+7 │   └── requirements.txt
+8 ├── mobile_app/
+9 │   ├── lib/
+10 │   │   ├── main.dart
+11 │   │   ├── booking_screen.dart
+12 │   │   ├── qr_code_screen.dart
+13 │   │   ├── border_manager_screen.dart
+14 │   │   ├── services/
+15 │   │   │   ├── api_service.dart
+16 │   │   │   ├── notification_service.dart
+17 │   │   │   └── qr_code_service.dart
+18 │   └── pubspec.yaml
+19 ├── database/
+20 │   └── setup.py
+21 └── README.md
+
+File: backend/lambda_function.py
+1 import json
+2 from booking_api import handle_booking
+3 from qr_code_api import handle_qr_code_verification
+4 from push_notification_api import handle_push_notification
+5 
+6 def lambda_handler(event, context):
+7     path = event['path']
+8     method = event['httpMethod']
+9     
+10     if path == '/book' and method == 'POST':
+11         return handle_booking(event)
+12     elif path == '/verify' and method == 'POST':
+13         return handle_qr_code_verification(event)
+14     elif path == '/notify' and method == 'POST':
+15         return handle_push_notification(event)
+16     else:
+17         return {
+18             'statusCode': 404,
+19             'body': json.dumps({'message': 'Not Found'})
+20         }
+
+File: backend/booking_api.py
+1 import json
+2 import pymongo
+3 from bson.objectid import ObjectId
+4 import qrcode
+5 
+6 client = pymongo.MongoClient("your_mongodb_connection_string")
+7 db = client['border_queue_management']
+8 bookings = db['bookings']
+9 
+10 def handle_booking(event):
+11     body = json.loads(event['body'])
+12     first_name = body['first_name']
+13     last_name = body['last_name']
+14     birthdate = body['birthdate']
+15     time_slot = body['time_slot']
+16     
+17     booking = {
+18         'first_name': first_name,
+19         'last_name': last_name,
+20         'birthdate': birthdate,
+21         'time_slot': time_slot,
+22         'security_code': str(ObjectId())
+23     }
+24     
+25     bookings.insert_one(booking)
+26     
+27     qr_data = f"{first_name} {last_name} {birthdate} {time_slot} {booking['security_code']}"
+28     qr = qrcode.make(qr_data)
+29     qr.save(f"/tmp/{booking['security_code']}.png")
+30     
+31     return {
+32         'statusCode': 200,
+33         'body': json.dumps({
+34             'order_number': booking['security_code'],
+35             'qr_code': qr_data
+36         })
+37     }
+
+File: backend/qr_code_api.py
+1 import json
+2 import pymongo
+3 
+4 client = pymongo.MongoClient("your_mongodb_connection_string")
+5 db = client['border_queue_management']
+6 bookings = db['bookings']
+7 
+8 def handle_qr_code_verification(event):
+9     body = json.loads(event['body'])
+10     security_code = body['security_code']
+11     
+12     booking = bookings.find_one({'security_code': security_code})
+13     
+14     if booking:
+15         return {
+16             'statusCode': 200,
+17             'body': json.dumps({
+18                 'first_name': booking['first_name'],
+19                 'last_name': booking['last_name'],
+20                 'birthdate': booking['birthdate'],
+21                 'time_slot': booking['time_slot']
+22             })
+23         }
+24     else:
+25         return {
+26             'statusCode': 404,
+27             'body': json.dumps({'message': 'Invalid QR Code'})
+28         }
+
+File: backend/push_notification_api.py
+1 import json
+2 import requests
+3 
+4 def handle_push_notification(event):
+5     body = json.loads(event['body'])
+6     user_token = body['user_token']
+7     message = body['message']
+8     
+9     headers = {
+10         'Content-Type': 'application/json',
+11         'Authorization': 'key=your_firebase_server_key'
+12     }
+13     
+14     payload = {
+15         'to': user_token,
+16         'notification': {
+17             'title': 'Border Queue Management',
+18             'body': message
+19         }
+20     }
+21     
+22     response = requests.post('https://fcm.googleapis.com/fcm/send', headers=headers, data=json.dumps(payload))
+23     
+24     return {
+25         'statusCode': response.status_code,
+26         'body': response.text
+27     }
+
+File: backend/requirements.txt
+1 pymongo
+2 qrcode
+3 requests
+
+File: mobile_app/pubspec.yaml
+1 name: border_queue_management
+2 description: A new Flutter project.
+3 
+4 publish_to: 'none'
+5 
+6 version: 1.0.0+1
+7 
+8 environment:
+9   sdk: ">=2.12.0 <3.0.0"
+10 
+11 dependencies:
+12   flutter:
+13     sdk: flutter
+14   http: ^0.13.3
+15   qr_code_scanner: ^0.4.0
+16   firebase_messaging: ^10.0.0
+17 
+18 dev_dependencies:
+19   flutter_test:
+20     sdk: flutter
+21 
+22 flutter:
+23   uses-material-design: true
+24 
+25   assets:
+26     - assets/
+
+File: mobile_app/lib/main.dart
+1 import 'package:flutter/material.dart';
+2 import 'booking_screen.dart';
+3 import 'qr_code_screen.dart';
+4 import 'border_manager_screen.dart';
+5 
+6 void main() {
+7   runApp(MyApp());
+8 }
+9 
+10 class MyApp extends StatelessWidget {
+11   @override
+12   Widget build(BuildContext context) {
+13     return MaterialApp(
+14       title: 'Border Queue Management',
+15       theme: ThemeData(
+16         primarySwatch: Colors.blue,
+17       ),
+18       home: HomeScreen(),
+19     );
+20   }
+21 }
+22 
+23 class HomeScreen extends StatelessWidget {
+24   @override
+25   Widget build(BuildContext context) {
+26     return Scaffold(
+27       appBar: AppBar(
+28         title: Text('Border Queue Management'),
+29       ),
+30       body: Center(
+31         child: Column(
+32           mainAxisAlignment: MainAxisAlignment.center,
+33           children: <Widget>[
+34             ElevatedButton(
+35               onPressed: () {
+36                 Navigator.push(
+37                   context,
+38                   MaterialPageRoute(builder: (context) => BookingScreen()),
+39                 );
+40               },
+41               child: Text('Book a Time Slot'),
+42             ),
+43             ElevatedButton(
+44               onPressed: () {
+45                 Navigator.push(
+46                   context,
+47                   MaterialPageRoute(builder: (context) => QRCodeScreen()),
+48                 );
+49               },
+50               child: Text('Scan QR Code'),
+51             ),
+52             ElevatedButton(
+53               onPressed: () {
+54                 Navigator.push(
+55                   context,
+56                   MaterialPageRoute(builder: (context) => BorderManagerScreen()),
+57                 );
+58               },
+59               child: Text('Border Manager Interface'),
+60             ),
+61           ],
+62         ),
+63       ),
+64     );
+65   }
+66 }
+
+File: mobile_app/lib/booking_screen.dart
+1 import 'package:flutter/material.dart';
+2 import 'services/api_service.dart';
+3 
+4 class BookingScreen extends StatefulWidget {
+5   @override
+6   _BookingScreenState createState() => _BookingScreenState();
+7 }
+8 
+9 class _BookingScreenState extends State<BookingScreen> {
+10   final _formKey = GlobalKey<FormState>();
+11   String _firstName = '';
+12   String _lastName = '';
+13   String _birthdate = '';
+14   String _timeSlot = '';
+15 
+16   @override
+17   Widget build(BuildContext context) {
+18     return Scaffold(
+19       appBar: AppBar(
+20         title: Text('Book a Time Slot'),
+21       ),
+22       body: Padding(
+23         padding: const EdgeInsets.all(16.0),
+24         child: Form(
+25           key: _formKey,
+26           child: Column(
+27             children: <Widget>[
+28               TextFormField(
+29                 decoration: InputDecoration(labelText: 'First Name'),
+30                 onSaved: (value) {
+31                   _firstName = value!;
+32                 },
+33               ),
+34               TextFormField(
+35                 decoration: InputDecoration(labelText: 'Last Name'),
+36                 onSaved: (value) {
+37                   _lastName = value!;
+38                 },
+39               ),
+40               TextFormField(
+41                 decoration: InputDecoration(labelText: 'Birthdate'),
+42                 onSaved: (value) {
+43                   _birthdate = value!;
+44                 },
+45               ),
+46               TextFormField(
+47                 decoration: InputDecoration(labelText: 'Time Slot'),
+48                 onSaved: (value) {
+49                   _timeSlot = value!;
+50                 },
+51               ),
+52               SizedBox(height: 20),
+53               ElevatedButton(
+54                 onPressed: () async {
+55                   _formKey.currentState!.save();
+56                   var response = await ApiService.bookTimeSlot(
+57                     _firstName,
+58                     _lastName,
+59                     _birthdate,
+60                     _timeSlot,
+61                   );
+62                   if (response != null) {
+63                     // Handle successful booking
+64                   }
+65                 },
+66                 child: Text('Book'),
+67               ),
+68             ],
+69           ),
+70         ),
+71       ),
+72     );
+73   }
+74 }
+
+File: mobile_app/lib/qr_code_screen.dart
+1 import 'package:flutter/material.dart';
+2 import 'package:qr_code_scanner/qr_code_scanner.dart';
+3 import 'services/api_service.dart';
+4 
+5 class QRCodeScreen extends StatefulWidget {
+6   @override
+7   _QRCodeScreenState createState() => _QRCodeScreenState();
+8 }
+9 
+10 class _QRCodeScreenState extends State<QRCodeScreen> {
+11   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+12   QRViewController? controller;
+13 
+14   @override
+15   Widget build(BuildContext context) {
+16     return Scaffold(
+17       appBar: AppBar(
+18         title: Text('Scan QR Code'),
+19       ),
+20       body: Column(
+21         children: <Widget>[
+22           Expanded(
+23             flex: 5,
+24             child: QRView(
+25               key: qrKey,
+26               onQRViewCreated: _onQRViewCreated,
+27             ),
+28           ),
+29           Expanded(
+30             flex: 1,
+31             child: Center(
+32               child: Text('Scan a QR code to verify booking.'),
+33             ),
+34           ),
+35         ],
+36       ),
+37     );
+38   }
+39 
+40   void _onQRViewCreated(QRViewController controller) {
+41     this.controller = controller;
+42     controller.scannedDataStream.listen((scanData) async {
+43       var response = await ApiService.verifyQRCode(scanData.code);
+44       if (response != null) {
+45         // Handle successful verification
+46       }
+47     });
+48   }
+49 
+50   @override
+51   void dispose() {
+52     controller?.dispose();
+53     super.dispose();
+54   }
+55 }
+
+File: mobile_app/lib/border_manager_screen.dart
+1 import 'package:flutter/material.dart';
+2 
+3 class BorderManagerScreen extends StatefulWidget {
+4   @override
+5   _BorderManagerScreenState createState() => _BorderManagerScreenState();
+6 }
+7 
+8 class _BorderManagerScreenState extends State<BorderManagerScreen> {
+9   int _capacity = 15;
+10 
+11   @override
+12   Widget build(BuildContext context) {
+13     return Scaffold(
+14       appBar: AppBar(
+15         title: Text('Border Manager Interface'),
+16       ),
+17       body: Padding(
+18         padding: const EdgeInsets.all(16.0),
+19         child: Column(
+20           children: <Widget>[
+21             Text('Current Capacity: $_capacity'),
+22             Slider(
+23               value: _capacity.toDouble(),
+24               min: 1,
+25               max: 15,
+26               divisions: 14,
+27               label: _capacity.toString(),
+28               onChanged: (value) {
+29                 setState(() {
+30                   _capacity = value.toInt();
+31                 });
+32               },
+33             ),
+34             ElevatedButton(
+35               onPressed: () {
+36                 // Handle capacity update
+37               },
+38               child: Text('Update Capacity'),
+39             ),
+40           ],
+41         ),
+42       ),
+43     );
+44   }
+45 }
+
+File: mobile_app/lib/services/api_service.dart
+1 import 'dart:convert';
+2 import 'package:http/http.dart' as http;
+3 
+4 class ApiService {
+5   static const String baseUrl = 'your_api_base_url';
+6 
+7   static Future<Map<String, dynamic>?> bookTimeSlot(
+8       String firstName, String lastName, String birthdate, String timeSlot) async {
+9     final response = await http.post(
+10       Uri.parse('$baseUrl/book'),
+11       headers: <String, String>{
+12         'Content-Type': 'application/json; charset=UTF-8',
+13       },
+14       body: jsonEncode(<String, String>{
+15         'first_name': firstName,
+16         'last_name': lastName,
+17         'birthdate': birthdate,
+18         'time_slot': timeSlot,
+19       }),
+20     );
+21 
+22     if (response.statusCode == 200) {
+23       return jsonDecode(response.body);
+24     } else {
+25       return null;
+26     }
+27   }
+28 
+29   static Future<Map<String, dynamic>?> verifyQRCode(String securityCode) async {
+30     final response = await http.post(
+31       Uri.parse('$baseUrl/verify'),
+32       headers: <String, String>{
+33         'Content-Type': 'application/json; charset=UTF-8',
+34       },
+35       body: jsonEncode(<String, String>{
+36         'security_code': securityCode,
+37       }),
+38     );
+39 
+40     if (response.statusCode == 200) {
+41       return jsonDecode(response.body);
+42     } else {
+43       return null;
+44     }
+45   }
+46 }
+
+File: mobile_app/lib/services/notification_service.dart
+1 import 'package:firebase_messaging/firebase_messaging.dart';
+2 
+3 class NotificationService {
+4   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+5 
+6   void initialize() {
+7     _firebaseMessaging.requestPermission();
+8     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+9       // Handle foreground messages
+10     });
+11     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+12       // Handle background messages
+13     });
+14   }
+15 
+16   Future<String?> getToken() async {
+17     return await _firebaseMessaging.getToken();
+18   }
+19 }
+
+File: mobile_app/lib/services/qr_code_service.dart
+1 import 'package:qr_code_scanner/qr_code_scanner.dart';
+2 
+3 class QRCodeService {
+4   void scanQRCode(QRViewController controller, Function(String) onScan) {
+5     controller.scannedDataStream.listen((scanData) {
+6       onScan(scanData.code);
+7     });
+8   }
+9 }
+
+File: database/setup.py
+1 import pymongo
+2 
+3 client = pymongo.MongoClient("your_mongodb_connection_string")
+4 db = client['border_queue_management']
+5 
+6 # Create collections
+7 db.create_collection('bookings')
+8 
+9 # Create indexes
+10 db['bookings'].create_index('security_code', unique=True)
+
+File: README.md
+1 # Border Queue Management Application
+2 
+3 ## Overview
+4 
+5 This project aims to reduce waiting times at border crossings by allowing users to book a time slot in advance. The system consists of a mobile application built with Flutter, a backend using Amazon EC2 Lambda, and a MongoDB cloud database.
+6 
+7 ## Setup
+8 
+9 ### Backend
+10 
+11 1. Navigate to the `backend` directory.
+12 2. Install the required dependencies:
+
+File: requirements.txt
+1 3. Deploy the Lambda function using AWS CLI or AWS Management Console.
+2 
+3 ### Mobile Application
+4 
+5 1. Navigate to the `mobile_app` directory.
+6 2. Install the required dependencies:
+
+File: get
+1 3. Run the application:
+
+File: run
+1 ### Database
+2 
+3 1. Navigate to the `database` directory.
+4 2. Run the setup script to create collections and indexes:
+
+File: setup.py
+1 ## Usage
+2 
+3 1. Open the mobile application.
+4 2. Book a time slot by entering your details and selecting a time slot.
+5 3. Receive a QR code with your booking information.
+6 4. Scan the QR code at the border to verify your booking.
+7 5. Border managers can use the manager interface to control the number of people crossing the border.
+8 
+9 ## License
+10 
+11 This project is licensed under the MIT License.
+
+```
+
+================================== Ai Message ==================================
+
+```sh
+#!/bin/bash
+
+# Install backend dependencies
+cd border_queue_management/backend
+pip install -r requirements.txt &
+
+# Install mobile app dependencies
+cd ../mobile_app
+flutter pub get &
+
+# Setup database
+cd ../database
+python setup.py &
+
+# Wait for all background processes to finish
+wait
+
+# Run backend (assuming you have a way to run the lambda function locally, e.g., using AWS SAM or a similar tool)
+# Example using AWS SAM CLI
+cd ../backend
+sam local start-api &
+
+# Run mobile app (assuming you have Flutter installed and configured)
+cd ../mobile_app
+flutter run &
+
+# Wait for all background processes to finish
+wait
+```
+
+2024-09-14T21:32:24.734437
+================================ System Message ================================
+
+You will get information about a codebase that is currently on disk in the current folder.
+The user will ask you to write a script that runs the code in a specific way.
+You will answer with code blocks that include all the necessary terminal commands.
+Do not install globally. Do not use sudo.
+Do not explain the code, just give the commands.
+Do not use placeholders, use example values (like . for a folder argument) if necessary.
+
+
+================================ Human Message =================================
+
+
+        Make a unix script that
+        a) installs dependencies
+        b) runs all necessary parts of the codebase (in parallel if necessary)
+        
+Information about the codebase:
+
+```
+File: Structure
+1 backend/
+2 ├── app/
+3 │   ├── __init__.py
+4 │   ├── booking.py
+5 │   ├── qr_code.py
+6 │   ├── notifications.py
+7 │   └── utils.py
+8 ├── tests/
+9 │   ├── test_booking.py
+10 │   ├── test_qr_code.py
+11 │   └── test_notifications.py
+12 ├── requirements.txt
+13 └── lambda_function.py
+
+File: backend/requirements.txt
+1 boto3
+2 pymongo
+3 qrcode
+4 pillow
+
+File: backend/lambda_function.py
+1 import json
+2 from app.booking import book_time_slot
+3 from app.qr_code import validate_qr_code
+4 from app.notifications import send_notification
+5 
+6 def lambda_handler(event, context):
+7     if event['path'] == '/book':
+8         return book_time_slot(event)
+9     elif event['path'] == '/validate':
+10         return validate_qr_code(event)
+11     elif event['path'] == '/notify':
+12         return send_notification(event)
+13     else:
+14         return {
+15             'statusCode': 404,
+16             'body': json.dumps('Not Found')
+17         }
+
+File: backend/app/booking.py
+1 import json
+2 import qrcode
+3 from pymongo import MongoClient
+4 from app.utils import generate_order_number, get_db
+5 
+6 def book_time_slot(event):
+7     data = json.loads(event['body'])
+8     first_name = data['first_name']
+9     last_name = data['last_name']
+10     birthdate = data['birthdate']
+11     time_slot = data['time_slot']
+12 
+13     order_number = generate_order_number()
+14     security_code = str(ObjectId())
+15 
+16     booking_data = {
+17         'first_name': first_name,
+18         'last_name': last_name,
+19         'birthdate': birthdate,
+20         'time_slot': time_slot,
+21         'order_number': order_number,
+22         'security_code': security_code
+23     }
+24 
+25     db = get_db()
+26     db.bookings.insert_one(booking_data)
+27 
+28     qr = qrcode.make(json.dumps(booking_data))
+29     qr.save(f'/tmp/{order_number}.png')
+30 
+31     return {
+32         'statusCode': 200,
+33         'body': json.dumps({
+34             'order_number': order_number,
+35             'qr_code': f'/tmp/{order_number}.png'
+36         })
+37     }
+
+File: backend/app/utils.py
+1 import random
+2 import string
+3 from pymongo import MongoClient
+4 
+5 def generate_order_number():
+6     return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+7 
+8 def get_db():
+9     client = MongoClient('mongodb+srv://<username>:<password>@cluster0.mongodb.net/test?retryWrites=true&w=majority')
+10     return client.border_queue
+
+File: backend/app/qr_code.py
+1 import json
+2 from pymongo import MongoClient
+3 from app.utils import get_db
+4 
+5 def validate_qr_code(event):
+6     data = json.loads(event['body'])
+7     security_code = data['security_code']
+8 
+9     db = get_db()
+10     booking = db.bookings.find_one({'security_code': security_code})
+11 
+12     if booking:
+13         return {
+14             'statusCode': 200,
+15             'body': json.dumps({
+16                 'first_name': booking['first_name'],
+17                 'last_name': booking['last_name'],
+18                 'birthdate': booking['birthdate'],
+19                 'time_slot': booking['time_slot']
+20             })
+21         }
+22     else:
+23         return {
+24             'statusCode': 404,
+25             'body': json.dumps('Invalid QR Code')
+26         }
+
+File: backend/app/notifications.py
+1 import json
+2 import boto3
+3 from datetime import datetime, timedelta
+4 
+5 def send_notification(event):
+6     data = json.loads(event['body'])
+7     user_id = data['user_id']
+8     time_slot = data['time_slot']
+9 
+10     notification_time = datetime.strptime(time_slot, '%Y-%m-%dT%H:%M:%S') - timedelta(hours=1)
+11     current_time = datetime.utcnow()
+12 
+13     if current_time >= notification_time:
+14         sns = boto3.client('sns')
+15         sns.publish(
+16             PhoneNumber=user_id,
+17             Message='Your border crossing time is in one hour.'
+18         )
+19         return {
+20             'statusCode': 200,
+21             'body': json.dumps('Notification sent')
+22         }
+23     else:
+24         return {
+25             'statusCode': 400,
+26             'body': json.dumps('Too early to send notification')
+27         }
+
+File: follows
+1 mobile/
+2 ├── lib/
+3 │   ├── main.dart
+4 │   ├── screens/
+5 │   │   ├── booking_screen.dart
+6 │   │   ├── qr_code_screen.dart
+7 │   │   └── manager_screen.dart
+8 │   ├── services/
+9 │   │   ├── api_service.dart
+10 │   │   └── notification_service.dart
+11 ├── pubspec.yaml
+12 └── test/
+13     ├── booking_screen_test.dart
+14     ├── qr_code_screen_test.dart
+15     └── manager_screen_test.dart
+
+File: mobile/pubspec.yaml
+1 name: border_queue_management
+2 description: A border queue management application.
+3 
+4 dependencies:
+5   flutter:
+6     sdk: flutter
+7   http: ^0.13.3
+8   qr_flutter: ^4.0.0
+9   firebase_messaging: ^10.0.0
+10 
+11 dev_dependencies:
+12   flutter_test:
+13     sdk: flutter
+
+File: mobile/lib/main.dart
+1 import 'package:flutter/material.dart';
+2 import 'screens/booking_screen.dart';
+3 import 'screens/qr_code_screen.dart';
+4 import 'screens/manager_screen.dart';
+5 
+6 void main() {
+7   runApp(BorderQueueApp());
+8 }
+9 
+10 class BorderQueueApp extends StatelessWidget {
+11   @override
+12   Widget build(BuildContext context) {
+13     return MaterialApp(
+14       title: 'Border Queue Management',
+15       theme: ThemeData(
+16         primarySwatch: Colors.blue,
+17       ),
+18       home: BookingScreen(),
+19       routes: {
+20         '/booking': (context) => BookingScreen(),
+21         '/qr_code': (context) => QRCodeScreen(),
+22         '/manager': (context) => ManagerScreen(),
+23       },
+24     );
+25   }
+26 }
+
+File: mobile/lib/screens/booking_screen.dart
+1 import 'package:flutter/material.dart';
+2 import 'package:http/http.dart' as http;
+3 import 'dart:convert';
+4 import 'package:qr_flutter/qr_flutter.dart';
+5 
+6 class BookingScreen extends StatefulWidget {
+7   @override
+8   _BookingScreenState createState() => _BookingScreenState();
+9 }
+10 
+11 class _BookingScreenState extends State<BookingScreen> {
+12   final _formKey = GlobalKey<FormState>();
+13   String firstName = '';
+14   String lastName = '';
+15   String birthdate = '';
+16   String timeSlot = '';
+17   String qrCode = '';
+18 
+19   Future<void> bookTimeSlot() async {
+20     final response = await http.post(
+21       Uri.parse('https://your-lambda-url/book'),
+22       headers: <String, String>{
+23         'Content-Type': 'application/json; charset=UTF-8',
+24       },
+25       body: jsonEncode(<String, String>{
+26         'first_name': firstName,
+27         'last_name': lastName,
+28         'birthdate': birthdate,
+29         'time_slot': timeSlot,
+30       }),
+31     );
+32 
+33     if (response.statusCode == 200) {
+34       final responseData = jsonDecode(response.body);
+35       setState(() {
+36         qrCode = responseData['qr_code'];
+37       });
+38     } else {
+39       throw Exception('Failed to book time slot');
+40     }
+41   }
+42 
+43   @override
+44   Widget build(BuildContext context) {
+45     return Scaffold(
+46       appBar: AppBar(
+47         title: Text('Book Time Slot'),
+48       ),
+49       body: Form(
+50         key: _formKey,
+51         child: Padding(
+52           padding: const EdgeInsets.all(16.0),
+53           child: Column(
+54             children: <Widget>[
+55               TextFormField(
+56                 decoration: InputDecoration(labelText: 'First Name'),
+57                 onChanged: (value) {
+58                   setState(() {
+59                     firstName = value;
+60                   });
+61                 },
+62               ),
+63               TextFormField(
+64                 decoration: InputDecoration(labelText: 'Last Name'),
+65                 onChanged: (value) {
+66                   setState(() {
+67                     lastName = value;
+68                   });
+69                 },
+70               ),
+71               TextFormField(
+72                 decoration: InputDecoration(labelText: 'Birthdate'),
+73                 onChanged: (value) {
+74                   setState(() {
+75                     birthdate = value;
+76                   });
+77                 },
+78               ),
+79               TextFormField(
+80                 decoration: InputDecoration(labelText: 'Time Slot'),
+81                 onChanged: (value) {
+82                   setState(() {
+83                     timeSlot = value;
+84                   });
+85                 },
+86               ),
+87               ElevatedButton(
+88                 onPressed: () {
+89                   if (_formKey.currentState!.validate()) {
+90                     bookTimeSlot();
+91                   }
+92                 },
+93                 child: Text('Book'),
+94               ),
+95               if (qrCode.isNotEmpty)
+96                 QrImage(
+97                   data: qrCode,
+98                   version: QrVersions.auto,
+99                   size: 200.0,
+100                 ),
+101             ],
+102           ),
+103         ),
+104       ),
+105     );
+106   }
+107 }
+
+File: mobile/lib/screens/qr_code_screen.dart
+1 import 'package:flutter/material.dart';
+2 import 'package:qr_code_scanner/qr_code_scanner.dart';
+3 import 'package:http/http.dart' as http;
+4 import 'dart:convert';
+5 
+6 class QRCodeScreen extends StatefulWidget {
+7   @override
+8   _QRCodeScreenState createState() => _QRCodeScreenState();
+9 }
+10 
+11 class _QRCodeScreenState extends State<QRCodeScreen> {
+12   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+13   QRViewController? controller;
+14   String result = '';
+15 
+16   @override
+17   void dispose() {
+18     controller?.dispose();
+19     super.dispose();
+20   }
+21 
+22   Future<void> validateQRCode(String code) async {
+23     final response = await http.post(
+24       Uri.parse('https://your-lambda-url/validate'),
+25       headers: <String, String>{
+26         'Content-Type': 'application/json; charset=UTF-8',
+27       },
+28       body: jsonEncode(<String, String>{
+29         'security_code': code,
+30       }),
+31     );
+32 
+33     if (response.statusCode == 200) {
+34       final responseData = jsonDecode(response.body);
+35       setState(() {
+36         result = 'Valid QR Code: ${responseData['first_name']} ${responseData['last_name']}';
+37       });
+38     } else {
+39       setState(() {
+40         result = 'Invalid QR Code';
+41       });
+42     }
+43   }
+44 
+45   @override
+46   Widget build(BuildContext context) {
+47     return Scaffold(
+48       appBar: AppBar(
+49         title: Text('Scan QR Code'),
+50       ),
+51       body: Column(
+52         children: <Widget>[
+53           Expanded(
+54             flex: 5,
+55             child: QRView(
+56               key: qrKey,
+57               onQRViewCreated: (QRViewController controller) {
+58                 this.controller = controller;
+59                 controller.scannedDataStream.listen((scanData) {
+60                   validateQRCode(scanData.code);
+61                 });
+62               },
+63             ),
+64           ),
+65           Expanded(
+66             flex: 1,
+67             child: Center(
+68               child: Text(result),
+69             ),
+70           ),
+71         ],
+72       ),
+73     );
+74   }
+75 }
+
+File: mobile/lib/screens/manager_screen.dart
+1 import 'package:flutter/material.dart';
+2 import 'package:http/http.dart' as http;
+3 import 'dart:convert';
+4 
+5 class ManagerScreen extends StatefulWidget {
+6   @override
+7   _ManagerScreenState createState() => _ManagerScreenState();
+8 }
+9 
+10 class _ManagerScreenState extends State<ManagerScreen> {
+11   int capacity = 0;
+12 
+13   Future<void> updateCapacity() async {
+14     final response = await http.post(
+15       Uri.parse('https://your-lambda-url/update_capacity'),
+16       headers: <String, String>{
+17         'Content-Type': 'application/json; charset=UTF-8',
+18       },
+19       body: jsonEncode(<String, int>{
+20         'capacity': capacity,
+21       }),
+22     );
+23 
+24     if (response.statusCode == 200) {
+25       setState(() {
+26         capacity = jsonDecode(response.body)['capacity'];
+27       });
+28     } else {
+29       throw Exception('Failed to update capacity');
+30     }
+31   }
+32 
+33   @override
+34   Widget build(BuildContext context) {
+35     return Scaffold(
+36       appBar: AppBar(
+37         title: Text('Manager Interface'),
+38       ),
+39       body: Padding(
+40         padding: const EdgeInsets.all(16.0),
+41         child: Column(
+42           children: <Widget>[
+43             Text('Current Capacity: $capacity'),
+44             Slider(
+45               value: capacity.toDouble(),
+46               min: 0,
+47               max: 15,
+48               divisions: 15,
+49               label: capacity.toString(),
+50               onChanged: (double value) {
+51                 setState(() {
+52                   capacity = value.toInt();
+53                 });
+54               },
+55             ),
+56             ElevatedButton(
+57               onPressed: updateCapacity,
+58               child: Text('Update Capacity'),
+59             ),
+60           ],
+61         ),
+62       ),
+63     );
+64   }
+65 }
+
+File: backend/tests/test_booking.py
+1 import unittest
+2 from app.booking import book_time_slot
+3 
+4 class TestBooking(unittest.TestCase):
+5     def test_book_time_slot(self):
+6         event = {
+7             'body': json.dumps({
+8                 'first_name': 'John',
+9                 'last_name': 'Doe',
+10                 'birthdate': '1990-01-01',
+11                 'time_slot': '2023-10-01T10:00:00'
+12             })
+13         }
+14         response = book_time_slot(event)
+15         self.assertEqual(response['statusCode'], 200)
+16         self.assertIn('order_number', json.loads(response['body']))
+17         self.assertIn('qr_code', json.loads(response['body']))
+18 
+19 if __name__ == '__main__':
+20     unittest.main()
+
+File: backend/tests/test_qr_code.py
+1 import unittest
+2 from app.qr_code import validate_qr_code
+3 
+4 class TestQRCode(unittest.TestCase):
+5     def test_validate_qr_code(self):
+6         event = {
+7             'body': json.dumps({
+8                 'security_code': 'valid_security_code'
+9             })
+10         }
+11         response = validate_qr_code(event)
+12         self.assertEqual(response['statusCode'], 200)
+13         self.assertIn('first_name', json.loads(response['body']))
+14         self.assertIn('last_name', json.loads(response['body']))
+15 
+16 if __name__ == '__main__':
+17     unittest.main()
+
+File: backend/tests/test_notifications.py
+1 import unittest
+2 from app.notifications import send_notification
+3 
+4 class TestNotifications(unittest.TestCase):
+5     def test_send_notification(self):
+6         event = {
+7             'body': json.dumps({
+8                 'user_id': '+1234567890',
+9                 'time_slot': '2023-10-01T10:00:00'
+10             })
+11         }
+12         response = send_notification(event)
+13         self.assertEqual(response['statusCode'], 200)
+14         self.assertEqual(json.loads(response['body']), 'Notification sent')
+15 
+16 if __name__ == '__main__':
+17     unittest.main()
+
+File: mobile/test/booking_screen_test.dart
+1 import 'package:flutter_test/flutter_test.dart';
+2 import 'package:border_queue_management/screens/booking_screen.dart';
+3 
+4 void main() {
+5   testWidgets('Booking Screen Test', (WidgetTester tester) async {
+6     await tester.pumpWidget(BookingScreen());
+7 
+8     expect(find.text('Book Time Slot'), findsOneWidget);
+9     expect(find.text('First Name'), findsOneWidget);
+10     expect(find.text('Last Name'), findsOneWidget);
+11     expect(find.text('Birthdate'), findsOneWidget);
+12     expect(find.text('Time Slot'), findsOneWidget);
+13   });
+14 }
+
+File: mobile/test/qr_code_screen_test.dart
+1 import 'package:flutter_test/flutter_test.dart';
+2 import 'package:border_queue_management/screens/qr_code_screen.dart';
+3 
+4 void main() {
+5   testWidgets('QR Code Screen Test', (WidgetTester tester) async {
+6     await tester.pumpWidget(QRCodeScreen());
+7 
+8     expect(find.text('Scan QR Code'), findsOneWidget);
+9   });
+10 }
+
+File: mobile/test/manager_screen_test.dart
+1 import 'package:flutter_test/flutter_test.dart';
+2 import 'package:border_queue_management/screens/manager_screen.dart';
+3 
+4 void main() {
+5   testWidgets('Manager Screen Test', (WidgetTester tester) async {
+6     await tester.pumpWidget(ManagerScreen());
+7 
+8     expect(find.text('Manager Interface'), findsOneWidget);
+9     expect(find.text('Current Capacity:'), findsOneWidget);
+10   });
+11 }
+
+```
+
+================================== Ai Message ==================================
+
+```sh
+#!/bin/bash
+
+# Install backend dependencies
+pip install -r backend/requirements.txt &
+
+# Install mobile dependencies
+cd mobile
+flutter pub get &
+cd ..
+
+# Wait for all background processes to finish
+wait
+
+# Run backend tests
+python -m unittest discover backend/tests &
+
+# Run mobile tests
+cd mobile
+flutter test &
+cd ..
+
+# Wait for all background processes to finish
+wait
+
+# Run backend application
+python backend/lambda_function.py &
+```
+
+2024-09-14T21:34:25.411410
+================================ System Message ================================
+
+You will get information about a codebase that is currently on disk in the current folder.
+The user will ask you to write a script that runs the code in a specific way.
+You will answer with code blocks that include all the necessary terminal commands.
+Do not install globally. Do not use sudo.
+Do not explain the code, just give the commands.
+Do not use placeholders, use example values (like . for a folder argument) if necessary.
+
+
+================================ Human Message =================================
+
+
+        Make a unix script that
+        a) installs dependencies
+        b) runs all necessary parts of the codebase (in parallel if necessary)
+        
+Information about the codebase:
+
+```
+File: lib/main.dart
+1 import 'package:flutter/material.dart';
+2 import 'package:border_queue_management_app/screens/booking_screen.dart';
+3 import 'package:border_queue_management_app/screens/qr_verification_screen.dart';
+4 import 'package:border_queue_management_app/screens/manager_screen.dart';
+5 
+6 void main() {
+7   runApp(BorderQueueManagementApp());
+8 }
+9 
+10 class BorderQueueManagementApp extends StatelessWidget {
+11   @override
+12   Widget build(BuildContext context) {
+13     return MaterialApp(
+14       title: 'Border Queue Management',
+15       theme: ThemeData(
+16         primarySwatch: Colors.blue,
+17       ),
+18       home: BookingScreen(),
+19       routes: {
+20         '/booking': (context) => BookingScreen(),
+21         '/qr_verification': (context) => QRVerificationScreen(),
+22         '/manager': (context) => ManagerScreen(),
+23       },
+24     );
+25   }
+26 }
+
+File: lib/screens/booking_screen.dart
+1 import 'package:flutter/material.dart';
+2 import 'package:border_queue_management_app/services/booking_service.dart';
+3 import 'package:border_queue_management_app/models/booking.dart';
+4 
+5 class BookingScreen extends StatefulWidget {
+6   @override
+7   _BookingScreenState createState() => _BookingScreenState();
+8 }
+9 
+10 class _BookingScreenState extends State<BookingScreen> {
+11   final _formKey = GlobalKey<FormState>();
+12   final _firstNameController = TextEditingController();
+13   final _lastNameController = TextEditingController();
+14   final _birthdateController = TextEditingController();
+15   String _selectedTimeSlot;
+16 
+17   @override
+18   Widget build(BuildContext context) {
+19     return Scaffold(
+20       appBar: AppBar(
+21         title: Text('Book a Time Slot'),
+22       ),
+23       body: Padding(
+24         padding: const EdgeInsets.all(16.0),
+25         child: Form(
+26           key: _formKey,
+27           child: Column(
+28             children: [
+29               TextFormField(
+30                 controller: _firstNameController,
+31                 decoration: InputDecoration(labelText: 'First Name'),
+32                 validator: (value) {
+33                   if (value.isEmpty) {
+34                     return 'Please enter your first name';
+35                   }
+36                   return null;
+37                 },
+38               ),
+39               TextFormField(
+40                 controller: _lastNameController,
+41                 decoration: InputDecoration(labelText: 'Last Name'),
+42                 validator: (value) {
+43                   if (value.isEmpty) {
+44                     return 'Please enter your last name';
+45                   }
+46                   return null;
+47                 },
+48               ),
+49               TextFormField(
+50                 controller: _birthdateController,
+51                 decoration: InputDecoration(labelText: 'Birthdate'),
+52                 validator: (value) {
+53                   if (value.isEmpty) {
+54                     return 'Please enter your birthdate';
+55                   }
+56                   return null;
+57                 },
+58               ),
+59               DropdownButtonFormField<String>(
+60                 value: _selectedTimeSlot,
+61                 hint: Text('Select a Time Slot'),
+62                 onChanged: (String newValue) {
+63                   setState(() {
+64                     _selectedTimeSlot = newValue;
+65                   });
+66                 },
+67                 items: <String>['08:00', '09:00', '10:00', '11:00']
+68                     .map<DropdownMenuItem<String>>((String value) {
+69                   return DropdownMenuItem<String>(
+70                     value: value,
+71                     child: Text(value),
+72                   );
+73                 }).toList(),
+74                 validator: (value) {
+75                   if (value == null) {
+76                     return 'Please select a time slot';
+77                   }
+78                   return null;
+79                 },
+80               ),
+81               SizedBox(height: 20),
+82               ElevatedButton(
+83                 onPressed: () {
+84                   if (_formKey.currentState.validate()) {
+85                     Booking booking = Booking(
+86                       firstName: _firstNameController.text,
+87                       lastName: _lastNameController.text,
+88                       birthdate: _birthdateController.text,
+89                       timeSlot: _selectedTimeSlot,
+90                     );
+91                     BookingService().createBooking(booking);
+92                   }
+93                 },
+94                 child: Text('Submit'),
+95               ),
+96             ],
+97           ),
+98         ),
+99       ),
+100     );
+101   }
+102 }
+
+File: lib/screens/qr_verification_screen.dart
+1 import 'package:flutter/material.dart';
+2 import 'package:qr_code_scanner/qr_code_scanner.dart';
+3 import 'package:border_queue_management_app/services/qr_verification_service.dart';
+4 
+5 class QRVerificationScreen extends StatefulWidget {
+6   @override
+7   _QRVerificationScreenState createState() => _QRVerificationScreenState();
+8 }
+9 
+10 class _QRVerificationScreenState extends State<QRVerificationScreen> {
+11   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+12   QRViewController controller;
+13   String result;
+14 
+15   @override
+16   void dispose() {
+17     controller?.dispose();
+18     super.dispose();
+19   }
+20 
+21   @override
+22   Widget build(BuildContext context) {
+23     return Scaffold(
+24       appBar: AppBar(
+25         title: Text('QR Code Verification'),
+26       ),
+27       body: Column(
+28         children: <Widget>[
+29           Expanded(
+30             flex: 5,
+31             child: QRView(
+32               key: qrKey,
+33               onQRViewCreated: _onQRViewCreated,
+34             ),
+35           ),
+36           Expanded(
+37             flex: 1,
+38             child: Center(
+39               child: (result != null)
+40                   ? Text('Result: $result')
+41                   : Text('Scan a code'),
+42             ),
+43           )
+44         ],
+45       ),
+46     );
+47   }
+48 
+49   void _onQRViewCreated(QRViewController controller) {
+50     this.controller = controller;
+51     controller.scannedDataStream.listen((scanData) async {
+52       String verificationResult = await QRVerificationService().verifyQRCode(scanData.code);
+53       setState(() {
+54         result = verificationResult;
+55       });
+56     });
+57   }
+58 }
+
+File: lib/screens/manager_screen.dart
+1 import 'package:flutter/material.dart';
+2 import 'package:border_queue_management_app/services/manager_service.dart';
+3 
+4 class ManagerScreen extends StatefulWidget {
+5   @override
+6   _ManagerScreenState createState() => _ManagerScreenState();
+7 }
+8 
+9 class _ManagerScreenState extends State<ManagerScreen> {
+10   final _capacityController = TextEditingController();
+11   int _currentCapacity;
+12 
+13   @override
+14   void initState() {
+15     super.initState();
+16     _loadCurrentCapacity();
+17   }
+18 
+19   void _loadCurrentCapacity() async {
+20     int capacity = await ManagerService().getCurrentCapacity();
+21     setState(() {
+22       _currentCapacity = capacity;
+23     });
+24   }
+25 
+26   @override
+27   Widget build(BuildContext context) {
+28     return Scaffold(
+29       appBar: AppBar(
+30         title: Text('Border Manager Interface'),
+31       ),
+32       body: Padding(
+33         padding: const EdgeInsets.all(16.0),
+34         child: Column(
+35           children: [
+36             TextFormField(
+37               controller: _capacityController,
+38               decoration: InputDecoration(labelText: 'Set Capacity'),
+39               keyboardType: TextInputType.number,
+40             ),
+41             SizedBox(height: 20),
+42             ElevatedButton(
+43               onPressed: () {
+44                 int newCapacity = int.parse(_capacityController.text);
+45                 ManagerService().setCapacity(newCapacity);
+46                 _loadCurrentCapacity();
+47               },
+48               child: Text('Update Capacity'),
+49             ),
+50             SizedBox(height: 20),
+51             Text('Current Capacity: $_currentCapacity'),
+52           ],
+53         ),
+54       ),
+55     );
+56   }
+57 }
+
+File: lib/models/booking.dart
+1 class Booking {
+2   final String firstName;
+3   final String lastName;
+4   final String birthdate;
+5   final String timeSlot;
+6 
+7   Booking({this.firstName, this.lastName, this.birthdate, this.timeSlot});
+8 
+9   Map<String, dynamic> toJson() {
+10     return {
+11       'firstName': firstName,
+12       'lastName': lastName,
+13       'birthdate': birthdate,
+14       'timeSlot': timeSlot,
+15     };
+16   }
+17 }
+
+File: lib/services/booking_service.dart
+1 import 'package:http/http.dart' as http;
+2 import 'dart:convert';
+3 import 'package:border_queue_management_app/models/booking.dart';
+4 
+5 class BookingService {
+6   Future<void> createBooking(Booking booking) async {
+7     final response = await http.post(
+8       Uri.parse('https://your-api-endpoint.com/bookings'),
+9       headers: <String, String>{
+10         'Content-Type': 'application/json; charset=UTF-8',
+11       },
+12       body: jsonEncode(booking.toJson()),
+13     );
+14 
+15     if (response.statusCode == 201) {
+16       // Booking created successfully
+17     } else {
+18       // Handle error
+19     }
+20   }
+21 }
+
+File: lib/services/qr_verification_service.dart
+1 import 'package:http/http.dart' as http;
+2 import 'dart:convert';
+3 
+4 class QRVerificationService {
+5   Future<String> verifyQRCode(String qrCode) async {
+6     final response = await http.post(
+7       Uri.parse('https://your-api-endpoint.com/verify_qr'),
+8       headers: <String, String>{
+9         'Content-Type': 'application/json; charset=UTF-8',
+10       },
+11       body: jsonEncode({'qrCode': qrCode}),
+12     );
+13 
+14     if (response.statusCode == 200) {
+15       return 'Valid QR Code';
+16     } else {
+17       return 'Invalid QR Code';
+18     }
+19   }
+20 }
+
+File: lib/services/manager_service.dart
+1 import 'package:http/http.dart' as http;
+2 import 'dart:convert';
+3 
+4 class ManagerService {
+5   Future<int> getCurrentCapacity() async {
+6     final response = await http.get(
+7       Uri.parse('https://your-api-endpoint.com/capacity'),
+8     );
+9 
+10     if (response.statusCode == 200) {
+11       return jsonDecode(response.body)['capacity'];
+12     } else {
+13       // Handle error
+14       return 0;
+15     }
+16   }
+17 
+18   Future<void> setCapacity(int capacity) async {
+19     final response = await http.post(
+20       Uri.parse('https://your-api-endpoint.com/set_capacity'),
+21       headers: <String, String>{
+22         'Content-Type': 'application/json; charset=UTF-8',
+23       },
+24       body: jsonEncode({'capacity': capacity}),
+25     );
+26 
+27     if (response.statusCode == 200) {
+28       // Capacity updated successfully
+29     } else {
+30       // Handle error
+31     }
+32   }
+33 }
+
+File: lambda_functions/booking_function.py
+1 import json
+2 import boto3
+3 from pymongo import MongoClient
+4 from bson.objectid import ObjectId
+5 import qrcode
+6 
+7 def lambda_handler(event, context):
+8     client = MongoClient("your_mongodb_connection_string")
+9     db = client.border_queue_management
+10     bookings = db.bookings
+11 
+12     booking_data = json.loads(event['body'])
+13     booking_data['security_code'] = str(ObjectId())
+14     
+15     booking_id = bookings.insert_one(booking_data).inserted_id
+16 
+17     qr = qrcode.QRCode(
+18         version=1,
+19         error_correction=qrcode.constants.ERROR_CORRECT_L,
+20         box_size=10,
+21         border=4,
+22     )
+23     qr.add_data(booking_data['security_code'])
+24     qr.make(fit=True)
+25 
+26     img = qr.make_image(fill='black', back_color='white')
+27     img.save(f'/tmp/{booking_id}.png')
+28 
+29     s3 = boto3.client('s3')
+30     s3.upload_file(f'/tmp/{booking_id}.png', 'your_bucket_name', f'{booking_id}.png')
+31 
+32     return {
+33         'statusCode': 201,
+34         'body': json.dumps({
+35             'order_number': str(booking_id),
+36             'qr_code_url': f'https://your_bucket_name.s3.amazonaws.com/{booking_id}.png'
+37         })
+38     }
+
+File: lambda_functions/qr_verification_function.py
+1 import json
+2 from pymongo import MongoClient
+3 
+4 def lambda_handler(event, context):
+5     client = MongoClient("your_mongodb_connection_string")
+6     db = client.border_queue_management
+7     bookings = db.bookings
+8 
+9     qr_code = json.loads(event['body'])['qrCode']
+10     booking = bookings.find_one({'security_code': qr_code})
+11 
+12     if booking:
+13         return {
+14             'statusCode': 200,
+15             'body': json.dumps({
+16                 'firstName': booking['firstName'],
+17                 'lastName': booking['lastName'],
+18                 'birthdate': booking['birthdate'],
+19                 'timeSlot': booking['timeSlot']
+20             })
+21         }
+22     else:
+23         return {
+24             'statusCode': 404,
+25             'body': json.dumps({'message': 'Invalid QR Code'})
+26         }
+
+File: lambda_functions/capacity_management_function.py
+1 import json
+2 from pymongo import MongoClient
+3 
+4 def lambda_handler(event, context):
+5     client = MongoClient("your_mongodb_connection_string")
+6     db = client.border_queue_management
+7     capacity = db.capacity
+8 
+9     if event['httpMethod'] == 'GET':
+10         current_capacity = capacity.find_one()
+11         return {
+12             'statusCode': 200,
+13             'body': json.dumps({'capacity': current_capacity['value']})
+14         }
+15     elif event['httpMethod'] == 'POST':
+16         new_capacity = json.loads(event['body'])['capacity']
+17         capacity.update_one({}, {'$set': {'value': new_capacity}}, upsert=True)
+18         return {
+19             'statusCode': 200,
+20             'body': json.dumps({'message': 'Capacity updated successfully'})
+21         }
+
+File: pubspec.yaml
+1 name: border_queue_management_app
+2 description: A Flutter application for border queue management.
+3 
+4 dependencies:
+5   flutter:
+6     sdk: flutter
+7   http: ^0.13.3
+8   qr_code_scanner: ^0.3.1
+9 
+10 dev_dependencies:
+11   flutter_test:
+12     sdk: flutter
+13 
+14 flutter:
+15   uses-material-design: true
+
+File: requirements.txt
+1 pymongo
+2 boto3
+3 qrcode
+
+```
+
+================================== Ai Message ==================================
+
+```sh
+#!/bin/bash
+
+# Install Flutter dependencies
+flutter pub get
+
+# Install Python dependencies
+pip install -r lambda_functions/requirements.txt --target lambda_functions/
+
+# Run the Flutter app
+flutter run lib/main.dart
+```

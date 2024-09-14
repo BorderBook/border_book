@@ -1,0 +1,19 @@
+{
+  "name": "border-crossing-queue-management",
+  "version": "1.0.0",
+  "description": "Serverless backend for Border Crossing Queue Management System",
+  "main": "handler.js",
+  "scripts": {
+    "deploy": "serverless deploy",
+    "offline": "serverless offline"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.814.0",
+    "mongoose": "^5.12.3",
+    "jsonwebtoken": "^8.5.1",
+    "qr-image": "^3.2.0"
+  },
+  "devDependencies": {
+    "serverless-offline": "^6.8.0"
+  }
+}

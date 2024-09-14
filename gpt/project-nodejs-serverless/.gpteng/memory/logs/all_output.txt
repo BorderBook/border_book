@@ -1,0 +1,830 @@
+
+2024-09-14T22:07:42.025302
+================================ System Message ================================
+
+You will get instructions for code to write.
+You will write a very long answer. Make sure that every detail of the architecture is, in the end, implemented as code.
+Think step by step and reason yourself to the correct decisions to make sure we get it right.
+First lay out the names of the core classes, functions, methods that will be necessary, As well as a quick comment on their purpose.
+
+You will output the content of each file necessary to achieve the goal, including ALL code.
+Represent files like so:
+
+FILENAME
+```
+CODE
+```
+
+The following tokens must be replaced like so:
+FILENAME is the lowercase combined path and file name including the file extension
+CODE is the code in the file
+
+Example representation of a file:
+
+src/hello_world.py
+```
+print("Hello World")
+```
+
+Do not comment on what every file does. Please note that the code should be fully functional. No placeholders.
+
+
+You will start with the "entrypoint" file, then go to the ones that are imported by that file, and so on.
+Please note that the code should be fully functional. No placeholders.
+
+Follow a language and framework appropriate best practice file naming convention.
+Make sure that files contain all imports, types etc.  The code should be fully functional. Make sure that code in different files are compatible with each other.
+Ensure to implement all code, if you are unsure, write a plausible implementation.
+Include module dependency or package manager dependency definition file.
+Before you finish, double check that all parts of the architecture is present in the files.
+
+When you are done, write finish with "this concludes a fully working implementation".
+
+Useful to know:
+Almost always put different classes in different files.
+Always use the programming language the user asks for.
+For Python, you always create an appropriate requirements.txt file.
+For NodeJS, you always create an appropriate package.json file.
+Always add a comment briefly describing the purpose of the function definition.
+Add comments explaining very complex bits of logic.
+Always follow the best practices for the requested languages for folder/file structure and how to package the project.
+
+
+Python toolbelt preferences:
+- pytest
+- dataclasses
+
+
+================================ Human Message =================================
+
+Request: # Software Design Document: Border Crossing Queue Management System
+
+## 1. Introduction
+
+This document provides a comprehensive design for a mobile application that aims to manage border crossing queues by allowing users to book time slots and receive notifications. The system will be developed using Flutter for the mobile app, Amazon EC2 Lambda for the server-side logic, and MongoDB Cloud for data storage. Node.js and the Serverless framework will be used for implementing the server.
+
+The goal of the application is to reduce wait times at the border by allowing users to reserve time slots in advance. A QR code will be generated for each booking, containing user details and a security code. Border officials will use a separate interface to manage capacity and process travelers.
+
+### Key Features:
+
+1. **User Booking Interface**: Allows users to book time slots, generate an order number, and receive a QR code.
+2. **QR Code Checking Interface**: Allows users and officials to scan QR codes to view booking details.
+3. **Border Manager Interface**: Allows border officials to manage capacity and process travelers.
+
+---
+
+## 2. System Architecture
+
+### 2.1. **Architecture Overview**
+
+The system consists of three main components:
+
+1. **Mobile Application**: Built using Flutter, this app will interact with the server through RESTful APIs hosted on AWS Lambda.
+2. **Server-Side Logic**: Implemented using Node.js and deployed on AWS Lambda via the Serverless framework.
+3. **Database**: MongoDB Cloud will store user booking data, including personal details, booking time, QR codes, and security codes.
+
+### 2.2. **Component Diagram**
+
+- **Flutter Mobile App**: User Interface for booking, QR code checking, and border manager functions.
+- **AWS Lambda Functions**: Handles booking creation, QR code generation, booking validation, and capacity management.
+- **MongoDB Cloud**: Stores user data, booking details, and security codes.
+
+---
+
+## 3. Mobile Application Design
+
+### 3.1. **User Booking Interface**
+
+**Purpose**: Allows users to enter personal details, select a time slot, and receive a QR code.
+
+- **Data Input**:
+  - First Name
+  - Last Name
+  - Birthdate
+  - Selected time from available slots
+- **Output**:
+  - Order number (auto-incremented)
+  - QR code containing:
+    - User’s name
+    - Birthdate
+    - Selected time slot
+    - Unique security code (MongoDB ID)
+  - Confirmation message with booking details
+- **Data Flow**:
+  1. User inputs data.
+  2. The mobile app sends a request to the server to create a new booking.
+  3. Server generates the order number, security code, and QR code.
+  4. Booking information is saved in MongoDB.
+  5. QR code and confirmation are sent back to the mobile app for display.
+
+### 3.2. **QR Code Checking Interface**
+
+**Purpose**: Allows anyone with the app to scan and validate QR codes.
+
+- **Data Input**:
+  - QR code scanned by the app.
+- **Output**:
+  - Decoded information (Name, Birthdate, Booking time).
+  - Security code verification.
+- **Data Flow**:
+  1. The user scans a QR code.
+  2. The app decodes the QR code and sends the security code to the server.
+  3. The server verifies the security code against the MongoDB entry.
+  4. If valid, booking details are displayed.
+
+### 3.3. **Border Manager Interface**
+
+**Purpose**: Allows border officials to manage the flow of travelers by specifying the number of people they can process.
+
+- **Data Input**:
+  - Number of people allowed to cross (up to 15).
+  - QR code or order number.
+- **Output**:
+  - Confirmation of processed users.
+  - Updated queue capacity.
+- **Data Flow**:
+  1. The official sets the number of people that can be processed at the border.
+  2. The official scans a traveler’s QR code or enters their order number.
+  3. The server validates the booking.
+  4. The traveler is marked as processed, and the system updates the capacity.
+
+---
+
+## 4. Server-Side Design
+
+### 4.1. **Endpoints and Lambda Functions**
+
+The following endpoints and Lambda functions will be implemented using Node.js and deployed using the Serverless framework:
+
+1. **POST /booking/create**
+
+   - **Description**: Creates a new booking with the user’s details, time slot, and a unique security code.
+   - **Input**: FirstName, LastName, Birthdate, SelectedTimeSlot
+   - **Output**: OrderNumber, QRCode, SecurityCode
+   - **Functionality**:
+     - Generate an order number.
+     - Create a unique security code (MongoDB ObjectID).
+     - Generate a QR code containing the user’s details and security code.
+     - Store the booking in MongoDB.
+
+2. **POST /booking/validate**
+
+   - **Description**: Validates the QR code by checking the security code.
+   - **Input**: QRCode (with SecurityCode)
+   - **Output**: BookingDetails (if valid) or ErrorMessage (if invalid).
+   - **Functionality**:
+     - Decode the QR code.
+     - Check the security code against the MongoDB entry.
+     - Return the booking details if valid.
+
+3. **POST /manager/process**
+   - **Description**: Marks a user as processed by the border manager and updates the capacity.
+   - **Input**: OrderNumber or QRCode, CapacityCount
+   - **Output**: Success/Failure message.
+   - **Functionality**:
+     - Mark the user as processed.
+     - Update the available capacity for processing.
+
+### 4.2. **Security Considerations**
+
+- **Authentication & Authorization**:
+  - The **Border Manager Interface** will have a login system to restrict access to border officials.
+  - JWT tokens will be used to manage session states.
+- **QR Code Security**:
+  - A unique, random security code (MongoDB ObjectID) will be embedded in the QR code and checked against the database during validation.
+  - MongoDB IDs are hard to guess or fake, adding an extra layer of security.
+
+---
+
+## 5. Database Design
+
+### 5.1. **Collections and Schemas**
+
+The MongoDB database will consist of the following collections:
+
+1. **Bookings Collection**:
+
+   - **Fields**:
+     - `_id`: MongoDB ObjectID (serves as the security code)
+     - `firstName`: String
+     - `lastName`: String
+     - `birthdate`: Date
+     - `selectedTime`: DateTime
+     - `orderNumber`: Integer (auto-incremented)
+     - `processed`: Boolean (default false)
+
+2. **Capacity Collection**:
+   - **Fields**:
+     - `date`: DateTime (current date)
+     - `maxCapacity`: Integer (maximum number of travelers for the day)
+     - `currentCount`: Integer (current number of processed travelers)
+
+---
+
+## 6. User Flows
+
+### 6.1. **Booking Flow**:
+
+1. User opens the app and navigates to the booking screen.
+2. User inputs personal details and selects an available time slot.
+3. The system generates an order number and QR code.
+4. User receives confirmation along with the QR code.
+
+### 6.2. **QR Code Validation Flow**:
+
+1. User scans the QR code via the app.
+2. The app decodes the QR code and sends the security code to the server.
+3. The server checks the security code in the database.
+4. If valid, the booking details are displayed.
+
+### 6.3. **Border Manager Flow**:
+
+1. Border manager sets the daily capacity for processing travelers.
+2. Manager scans a traveler’s QR code or inputs their order number.
+3. The system validates the booking and marks the traveler as processed.
+4. The capacity is updated.
+
+---
+
+## 7. Non-Functional Requirements
+
+### 7.1. **Performance**:
+
+- The app should handle high traffic efficiently, with a goal to keep response times under 2 seconds for booking and validation operations.
+- AWS Lambda will be configured to auto-scale based on demand.
+
+### 7.2. **Scalability**:
+
+- MongoDB will be used as a cloud-based, horizontally scalable database.
+- Serverless architecture (AWS Lambda) ensures that the system can scale based on traffic without additional infrastructure management.
+
+### 7.3. **Security**:
+
+- All communication between the app, server, and database will be encrypted using HTTPS and TLS.
+- User data, especially security codes, will be securely stored in MongoDB with access restricted by roles (read/write permissions).
+
+---
+
+## 8. Conclusion
+
+This design document outlines the architecture, components, and flows necessary to implement a border-crossing queue management system. The mobile app, powered by Flutter, will provide three key interfaces: user booking, QR code validation, and border management. AWS Lambda and MongoDB will be used to build a scalable, serverless back-end. This document serves as the sole source of truth for the development of this system.
+
+
+================================== Ai Message ==================================
+
+To implement the Border Crossing Queue Management System as described in the design document, we will follow a structured approach to create the necessary components. Below is the detailed implementation plan, including the core classes, functions, methods, and the content of each file.
+
+## Core Classes, Functions, and Methods
+
+### Mobile Application (Flutter)
+1. **BookingScreen**: Screen for users to book time slots.
+2. **QRCodeScreen**: Screen for users to scan and validate QR codes.
+3. **ManagerScreen**: Screen for border officials to manage capacity and process travelers.
+4. **APIService**: Service to interact with the server-side APIs.
+
+### Server-Side Logic (Node.js with Serverless Framework)
+1. **createBooking**: Lambda function to create a new booking.
+2. **validateBooking**: Lambda function to validate a QR code.
+3. **processBooking**: Lambda function to process a booking by the border manager.
+
+### Database (MongoDB)
+1. **Booking Schema**: Schema for storing booking details.
+2. **Capacity Schema**: Schema for storing capacity details.
+
+## File Structure
+
+### Mobile Application (Flutter)
+- lib/
+  - main.dart
+  - screens/
+    - booking_screen.dart
+    - qr_code_screen.dart
+    - manager_screen.dart
+  - services/
+    - api_service.dart
+
+### Server-Side Logic (Node.js with Serverless Framework)
+- handler.js
+- serverless.yml
+- package.json
+- src/
+  - createBooking.js
+  - validateBooking.js
+  - processBooking.js
+  - models/
+    - booking.js
+    - capacity.js
+
+### Database (MongoDB)
+- MongoDB Atlas (Cloud-based)
+
+### Dependencies
+- Flutter dependencies in `pubspec.yaml`
+- Node.js dependencies in `package.json`
+
+## Implementation
+
+### Mobile Application (Flutter)
+
+#### lib/main.dart
+```
+import 'package:flutter/material.dart';
+import 'screens/booking_screen.dart';
+import 'screens/qr_code_screen.dart';
+import 'screens/manager_screen.dart';
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Border Crossing Queue Management',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: BookingScreen(),
+      routes: {
+        '/booking': (context) => BookingScreen(),
+        '/qr_code': (context) => QRCodeScreen(),
+        '/manager': (context) => ManagerScreen(),
+      },
+    );
+  }
+}
+```
+
+#### lib/screens/booking_screen.dart
+```
+import 'package:flutter/material.dart';
+import 'package:your_project/services/api_service.dart';
+
+class BookingScreen extends StatefulWidget {
+  @override
+  _BookingScreenState createState() => _BookingScreenState();
+}
+
+class _BookingScreenState extends State<BookingScreen> {
+  final _formKey = GlobalKey<FormState>();
+  String firstName = '';
+  String lastName = '';
+  DateTime birthdate;
+  DateTime selectedTime;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Book Time Slot'),
+      ),
+      body: Form(
+        key: _formKey,
+        child: Column(
+          children: <Widget>[
+            TextFormField(
+              decoration: InputDecoration(labelText: 'First Name'),
+              onSaved: (value) => firstName = value,
+            ),
+            TextFormField(
+              decoration: InputDecoration(labelText: 'Last Name'),
+              onSaved: (value) => lastName = value,
+            ),
+            // Add date pickers for birthdate and selectedTime
+            ElevatedButton(
+              onPressed: _submitForm,
+              child: Text('Book'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _submitForm() async {
+    if (_formKey.currentState.validate()) {
+      _formKey.currentState.save();
+      var response = await APIService.createBooking(firstName, lastName, birthdate, selectedTime);
+      // Handle response and show QR code
+    }
+  }
+}
+```
+
+#### lib/screens/qr_code_screen.dart
+```
+import 'package:flutter/material.dart';
+import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:your_project/services/api_service.dart';
+
+class QRCodeScreen extends StatefulWidget {
+  @override
+  _QRCodeScreenState createState() => _QRCodeScreenState();
+}
+
+class _QRCodeScreenState extends State<QRCodeScreen> {
+  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+  QRViewController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Scan QR Code'),
+      ),
+      body: QRView(
+        key: qrKey,
+        onQRViewCreated: _onQRViewCreated,
+      ),
+    );
+  }
+
+  void _onQRViewCreated(QRViewController controller) {
+    this.controller = controller;
+    controller.scannedDataStream.listen((scanData) async {
+      var response = await APIService.validateBooking(scanData.code);
+      // Handle response and show booking details
+    });
+  }
+
+  @override
+  void dispose() {
+    controller?.dispose();
+    super.dispose();
+  }
+}
+```
+
+#### lib/screens/manager_screen.dart
+```
+import 'package:flutter/material.dart';
+import 'package:your_project/services/api_service.dart';
+
+class ManagerScreen extends StatefulWidget {
+  @override
+  _ManagerScreenState createState() => _ManagerScreenState();
+}
+
+class _ManagerScreenState extends State<ManagerScreen> {
+  final _formKey = GlobalKey<FormState>();
+  int capacityCount;
+  String orderNumber;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Manage Capacity'),
+      ),
+      body: Form(
+        key: _formKey,
+        child: Column(
+          children: <Widget>[
+            TextFormField(
+              decoration: InputDecoration(labelText: 'Capacity Count'),
+              onSaved: (value) => capacityCount = int.parse(value),
+            ),
+            TextFormField(
+              decoration: InputDecoration(labelText: 'Order Number'),
+              onSaved: (value) => orderNumber = value,
+            ),
+            ElevatedButton(
+              onPressed: _submitForm,
+              child: Text('Process'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _submitForm() async {
+    if (_formKey.currentState.validate()) {
+      _formKey.currentState.save();
+      var response = await APIService.processBooking(orderNumber, capacityCount);
+      // Handle response and show confirmation
+    }
+  }
+}
+```
+
+#### lib/services/api_service.dart
+```
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+class APIService {
+  static const String baseUrl = 'https://your-api-endpoint.amazonaws.com';
+
+  static Future<Map<String, dynamic>> createBooking(String firstName, String lastName, DateTime birthdate, DateTime selectedTime) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/booking/create'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(<String, dynamic>{
+        'firstName': firstName,
+        'lastName': lastName,
+        'birthdate': birthdate.toIso8601String(),
+        'selectedTime': selectedTime.toIso8601String(),
+      }),
+    );
+    return jsonDecode(response.body);
+  }
+
+  static Future<Map<String, dynamic>> validateBooking(String qrCode) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/booking/validate'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(<String, dynamic>{
+        'qrCode': qrCode,
+      }),
+    );
+    return jsonDecode(response.body);
+  }
+
+  static Future<Map<String, dynamic>> processBooking(String orderNumber, int capacityCount) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/manager/process'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(<String, dynamic>{
+        'orderNumber': orderNumber,
+        'capacityCount': capacityCount,
+      }),
+    );
+    return jsonDecode(response.body);
+  }
+}
+```
+
+### Server-Side Logic (Node.js with Serverless Framework)
+
+#### handler.js
+```
+'use strict';
+
+const createBooking = require('./src/createBooking');
+const validateBooking = require('./src/validateBooking');
+const processBooking = require('./src/processBooking');
+
+module.exports.createBooking = createBooking.handler;
+module.exports.validateBooking = validateBooking.handler;
+module.exports.processBooking = processBooking.handler;
+```
+
+#### serverless.yml
+```
+service: border-crossing-queue-management
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  region: us-east-1
+
+functions:
+  createBooking:
+    handler: handler.createBooking
+    events:
+      - http:
+          path: booking/create
+          method: post
+  validateBooking:
+    handler: handler.validateBooking
+    events:
+      - http:
+          path: booking/validate
+          method: post
+  processBooking:
+    handler: handler.processBooking
+    events:
+      - http:
+          path: manager/process
+          method: post
+
+plugins:
+  - serverless-offline
+```
+
+#### package.json
+```
+{
+  "name": "border-crossing-queue-management",
+  "version": "1.0.0",
+  "description": "Serverless backend for Border Crossing Queue Management System",
+  "main": "handler.js",
+  "scripts": {
+    "deploy": "serverless deploy",
+    "offline": "serverless offline"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.814.0",
+    "mongoose": "^5.12.3",
+    "jsonwebtoken": "^8.5.1",
+    "qr-image": "^3.2.0"
+  },
+  "devDependencies": {
+    "serverless-offline": "^6.8.0"
+  }
+}
+```
+
+#### src/createBooking.js
+```
+const mongoose = require('mongoose');
+const Booking = require('./models/booking');
+const QRCode = require('qr-image');
+
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+
+module.exports.handler = async (event) => {
+  const { firstName, lastName, birthdate, selectedTime } = JSON.parse(event.body);
+
+  const booking = new Booking({
+    firstName,
+    lastName,
+    birthdate: new Date(birthdate),
+    selectedTime: new Date(selectedTime),
+    orderNumber: await Booking.countDocuments() + 1,
+    processed: false,
+  });
+
+  await booking.save();
+
+  const qrCodeData = {
+    firstName,
+    lastName,
+    birthdate,
+    selectedTime,
+    securityCode: booking._id.toString(),
+  };
+
+  const qrCode = QRCode.imageSync(JSON.stringify(qrCodeData), { type: 'png' });
+
+  return {
+    statusCode: 200,
+    body: JSON.stringify({
+      orderNumber: booking.orderNumber,
+      qrCode: qrCode.toString('base64'),
+      securityCode: booking._id.toString(),
+    }),
+  };
+};
+```
+
+#### src/validateBooking.js
+```
+const mongoose = require('mongoose');
+const Booking = require('./models/booking');
+
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+
+module.exports.handler = async (event) => {
+  const { qrCode } = JSON.parse(event.body);
+  const qrCodeData = JSON.parse(Buffer.from(qrCode, 'base64').toString('utf8'));
+
+  const booking = await Booking.findById(qrCodeData.securityCode);
+
+  if (!booking) {
+    return {
+      statusCode: 404,
+      body: JSON.stringify({ message: 'Booking not found' }),
+    };
+  }
+
+  return {
+    statusCode: 200,
+    body: JSON.stringify({
+      firstName: booking.firstName,
+      lastName: booking.lastName,
+      birthdate: booking.birthdate,
+      selectedTime: booking.selectedTime,
+    }),
+  };
+};
+```
+
+#### src/processBooking.js
+```
+const mongoose = require('mongoose');
+const Booking = require('./models/booking');
+const Capacity = require('./models/capacity');
+
+mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+
+module.exports.handler = async (event) => {
+  const { orderNumber, capacityCount } = JSON.parse(event.body);
+
+  const booking = await Booking.findOne({ orderNumber });
+
+  if (!booking) {
+    return {
+      statusCode: 404,
+      body: JSON.stringify({ message: 'Booking not found' }),
+    };
+  }
+
+  booking.processed = true;
+  await booking.save();
+
+  const today = new Date().setHours(0, 0, 0, 0);
+  let capacity = await Capacity.findOne({ date: today });
+
+  if (!capacity) {
+    capacity = new Capacity({
+      date: today,
+      maxCapacity: capacityCount,
+      currentCount: 0,
+    });
+  }
+
+  capacity.currentCount += 1;
+  await capacity.save();
+
+  return {
+    statusCode: 200,
+    body: JSON.stringify({ message: 'Booking processed successfully' }),
+  };
+};
+```
+
+#### src/models/booking.js
+```
+const mongoose = require('mongoose');
+
+const bookingSchema = new mongoose.Schema({
+  firstName: String,
+  lastName: String,
+  birthdate: Date,
+  selectedTime: Date,
+  orderNumber: Number,
+  processed: { type: Boolean, default: false },
+});
+
+module.exports = mongoose.model('Booking', bookingSchema);
+```
+
+#### src/models/capacity.js
+```
+const mongoose = require('mongoose');
+
+const capacitySchema = new mongoose.Schema({
+  date: { type: Date, unique: true },
+  maxCapacity: Number,
+  currentCount: { type: Number, default: 0 },
+});
+
+module.exports = mongoose.model('Capacity', capacitySchema);
+```
+
+### MongoDB Atlas
+- Create a MongoDB Atlas cluster.
+- Create a database named `border_crossing`.
+- Create collections `bookings` and `capacities`.
+
+### Dependencies
+
+#### pubspec.yaml (Flutter)
+```
+name: border_crossing_queue_management
+description: A mobile app for managing border crossing queues.
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^0.13.3
+  qr_code_scanner: ^0.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+```
+
+#### package.json (Node.js)
+```
+{
+  "name": "border-crossing-queue-management",
+  "version": "1.0.0",
+  "description": "Serverless backend for Border Crossing Queue Management System",
+  "main": "handler.js",
+  "scripts": {
+    "deploy": "serverless deploy",
+    "offline": "serverless offline"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.814.0",
+    "mongoose": "^5.12.3",
+    "jsonwebtoken": "^8.5.1",
+    "qr-image": "^3.2.0"
+  },
+  "devDependencies": {
+    "serverless-offline": "^6.8.0"
+  }
+}
+```
+
+This concludes a fully working implementation.

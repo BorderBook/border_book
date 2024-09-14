@@ -1,0 +1,29 @@
+service: border-crossing-queue-management
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  region: us-east-1
+
+functions:
+  createBooking:
+    handler: handler.createBooking
+    events:
+      - http:
+          path: booking/create
+          method: post
+  validateBooking:
+    handler: handler.validateBooking
+    events:
+      - http:
+          path: booking/validate
+          method: post
+  processBooking:
+    handler: handler.processBooking
+    events:
+      - http:
+          path: manager/process
+          method: post
+
+plugins:
+  - serverless-offline

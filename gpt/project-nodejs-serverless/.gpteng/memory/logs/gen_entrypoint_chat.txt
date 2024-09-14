@@ -1,0 +1,506 @@
+
+2024-09-14T22:07:43.591237
+================================ System Message ================================
+
+You will get information about a codebase that is currently on disk in the current folder.
+The user will ask you to write a script that runs the code in a specific way.
+You will answer with code blocks that include all the necessary terminal commands.
+Do not install globally. Do not use sudo.
+Do not explain the code, just give the commands.
+Do not use placeholders, use example values (like . for a folder argument) if necessary.
+
+
+================================ Human Message =================================
+
+
+        Make a unix script that
+        a) installs dependencies
+        b) runs all necessary parts of the codebase (in parallel if necessary)
+        
+Information about the codebase:
+
+```
+File: lib/main.dart
+1 import 'package:flutter/material.dart';
+2 import 'screens/booking_screen.dart';
+3 import 'screens/qr_code_screen.dart';
+4 import 'screens/manager_screen.dart';
+5 
+6 void main() {
+7   runApp(MyApp());
+8 }
+9 
+10 class MyApp extends StatelessWidget {
+11   @override
+12   Widget build(BuildContext context) {
+13     return MaterialApp(
+14       title: 'Border Crossing Queue Management',
+15       theme: ThemeData(
+16         primarySwatch: Colors.blue,
+17       ),
+18       home: BookingScreen(),
+19       routes: {
+20         '/booking': (context) => BookingScreen(),
+21         '/qr_code': (context) => QRCodeScreen(),
+22         '/manager': (context) => ManagerScreen(),
+23       },
+24     );
+25   }
+26 }
+
+File: lib/screens/booking_screen.dart
+1 import 'package:flutter/material.dart';
+2 import 'package:your_project/services/api_service.dart';
+3 
+4 class BookingScreen extends StatefulWidget {
+5   @override
+6   _BookingScreenState createState() => _BookingScreenState();
+7 }
+8 
+9 class _BookingScreenState extends State<BookingScreen> {
+10   final _formKey = GlobalKey<FormState>();
+11   String firstName = '';
+12   String lastName = '';
+13   DateTime birthdate;
+14   DateTime selectedTime;
+15 
+16   @override
+17   Widget build(BuildContext context) {
+18     return Scaffold(
+19       appBar: AppBar(
+20         title: Text('Book Time Slot'),
+21       ),
+22       body: Form(
+23         key: _formKey,
+24         child: Column(
+25           children: <Widget>[
+26             TextFormField(
+27               decoration: InputDecoration(labelText: 'First Name'),
+28               onSaved: (value) => firstName = value,
+29             ),
+30             TextFormField(
+31               decoration: InputDecoration(labelText: 'Last Name'),
+32               onSaved: (value) => lastName = value,
+33             ),
+34             // Add date pickers for birthdate and selectedTime
+35             ElevatedButton(
+36               onPressed: _submitForm,
+37               child: Text('Book'),
+38             ),
+39           ],
+40         ),
+41       ),
+42     );
+43   }
+44 
+45   void _submitForm() async {
+46     if (_formKey.currentState.validate()) {
+47       _formKey.currentState.save();
+48       var response = await APIService.createBooking(firstName, lastName, birthdate, selectedTime);
+49       // Handle response and show QR code
+50     }
+51   }
+52 }
+
+File: lib/screens/qr_code_screen.dart
+1 import 'package:flutter/material.dart';
+2 import 'package:qr_code_scanner/qr_code_scanner.dart';
+3 import 'package:your_project/services/api_service.dart';
+4 
+5 class QRCodeScreen extends StatefulWidget {
+6   @override
+7   _QRCodeScreenState createState() => _QRCodeScreenState();
+8 }
+9 
+10 class _QRCodeScreenState extends State<QRCodeScreen> {
+11   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+12   QRViewController controller;
+13 
+14   @override
+15   Widget build(BuildContext context) {
+16     return Scaffold(
+17       appBar: AppBar(
+18         title: Text('Scan QR Code'),
+19       ),
+20       body: QRView(
+21         key: qrKey,
+22         onQRViewCreated: _onQRViewCreated,
+23       ),
+24     );
+25   }
+26 
+27   void _onQRViewCreated(QRViewController controller) {
+28     this.controller = controller;
+29     controller.scannedDataStream.listen((scanData) async {
+30       var response = await APIService.validateBooking(scanData.code);
+31       // Handle response and show booking details
+32     });
+33   }
+34 
+35   @override
+36   void dispose() {
+37     controller?.dispose();
+38     super.dispose();
+39   }
+40 }
+
+File: lib/screens/manager_screen.dart
+1 import 'package:flutter/material.dart';
+2 import 'package:your_project/services/api_service.dart';
+3 
+4 class ManagerScreen extends StatefulWidget {
+5   @override
+6   _ManagerScreenState createState() => _ManagerScreenState();
+7 }
+8 
+9 class _ManagerScreenState extends State<ManagerScreen> {
+10   final _formKey = GlobalKey<FormState>();
+11   int capacityCount;
+12   String orderNumber;
+13 
+14   @override
+15   Widget build(BuildContext context) {
+16     return Scaffold(
+17       appBar: AppBar(
+18         title: Text('Manage Capacity'),
+19       ),
+20       body: Form(
+21         key: _formKey,
+22         child: Column(
+23           children: <Widget>[
+24             TextFormField(
+25               decoration: InputDecoration(labelText: 'Capacity Count'),
+26               onSaved: (value) => capacityCount = int.parse(value),
+27             ),
+28             TextFormField(
+29               decoration: InputDecoration(labelText: 'Order Number'),
+30               onSaved: (value) => orderNumber = value,
+31             ),
+32             ElevatedButton(
+33               onPressed: _submitForm,
+34               child: Text('Process'),
+35             ),
+36           ],
+37         ),
+38       ),
+39     );
+40   }
+41 
+42   void _submitForm() async {
+43     if (_formKey.currentState.validate()) {
+44       _formKey.currentState.save();
+45       var response = await APIService.processBooking(orderNumber, capacityCount);
+46       // Handle response and show confirmation
+47     }
+48   }
+49 }
+
+File: lib/services/api_service.dart
+1 import 'package:http/http.dart' as http;
+2 import 'dart:convert';
+3 
+4 class APIService {
+5   static const String baseUrl = 'https://your-api-endpoint.amazonaws.com';
+6 
+7   static Future<Map<String, dynamic>> createBooking(String firstName, String lastName, DateTime birthdate, DateTime selectedTime) async {
+8     final response = await http.post(
+9       Uri.parse('$baseUrl/booking/create'),
+10       headers: <String, String>{
+11         'Content-Type': 'application/json; charset=UTF-8',
+12       },
+13       body: jsonEncode(<String, dynamic>{
+14         'firstName': firstName,
+15         'lastName': lastName,
+16         'birthdate': birthdate.toIso8601String(),
+17         'selectedTime': selectedTime.toIso8601String(),
+18       }),
+19     );
+20     return jsonDecode(response.body);
+21   }
+22 
+23   static Future<Map<String, dynamic>> validateBooking(String qrCode) async {
+24     final response = await http.post(
+25       Uri.parse('$baseUrl/booking/validate'),
+26       headers: <String, String>{
+27         'Content-Type': 'application/json; charset=UTF-8',
+28       },
+29       body: jsonEncode(<String, dynamic>{
+30         'qrCode': qrCode,
+31       }),
+32     );
+33     return jsonDecode(response.body);
+34   }
+35 
+36   static Future<Map<String, dynamic>> processBooking(String orderNumber, int capacityCount) async {
+37     final response = await http.post(
+38       Uri.parse('$baseUrl/manager/process'),
+39       headers: <String, String>{
+40         'Content-Type': 'application/json; charset=UTF-8',
+41       },
+42       body: jsonEncode(<String, dynamic>{
+43         'orderNumber': orderNumber,
+44         'capacityCount': capacityCount,
+45       }),
+46     );
+47     return jsonDecode(response.body);
+48   }
+49 }
+
+File: handler.js
+1 'use strict';
+2 
+3 const createBooking = require('./src/createBooking');
+4 const validateBooking = require('./src/validateBooking');
+5 const processBooking = require('./src/processBooking');
+6 
+7 module.exports.createBooking = createBooking.handler;
+8 module.exports.validateBooking = validateBooking.handler;
+9 module.exports.processBooking = processBooking.handler;
+
+File: serverless.yml
+1 service: border-crossing-queue-management
+2 
+3 provider:
+4   name: aws
+5   runtime: nodejs14.x
+6   region: us-east-1
+7 
+8 functions:
+9   createBooking:
+10     handler: handler.createBooking
+11     events:
+12       - http:
+13           path: booking/create
+14           method: post
+15   validateBooking:
+16     handler: handler.validateBooking
+17     events:
+18       - http:
+19           path: booking/validate
+20           method: post
+21   processBooking:
+22     handler: handler.processBooking
+23     events:
+24       - http:
+25           path: manager/process
+26           method: post
+27 
+28 plugins:
+29   - serverless-offline
+
+File: package.json
+1 {
+2   "name": "border-crossing-queue-management",
+3   "version": "1.0.0",
+4   "description": "Serverless backend for Border Crossing Queue Management System",
+5   "main": "handler.js",
+6   "scripts": {
+7     "deploy": "serverless deploy",
+8     "offline": "serverless offline"
+9   },
+10   "dependencies": {
+11     "aws-sdk": "^2.814.0",
+12     "mongoose": "^5.12.3",
+13     "jsonwebtoken": "^8.5.1",
+14     "qr-image": "^3.2.0"
+15   },
+16   "devDependencies": {
+17     "serverless-offline": "^6.8.0"
+18   }
+19 }
+
+File: src/createBooking.js
+1 const mongoose = require('mongoose');
+2 const Booking = require('./models/booking');
+3 const QRCode = require('qr-image');
+4 
+5 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+6 
+7 module.exports.handler = async (event) => {
+8   const { firstName, lastName, birthdate, selectedTime } = JSON.parse(event.body);
+9 
+10   const booking = new Booking({
+11     firstName,
+12     lastName,
+13     birthdate: new Date(birthdate),
+14     selectedTime: new Date(selectedTime),
+15     orderNumber: await Booking.countDocuments() + 1,
+16     processed: false,
+17   });
+18 
+19   await booking.save();
+20 
+21   const qrCodeData = {
+22     firstName,
+23     lastName,
+24     birthdate,
+25     selectedTime,
+26     securityCode: booking._id.toString(),
+27   };
+28 
+29   const qrCode = QRCode.imageSync(JSON.stringify(qrCodeData), { type: 'png' });
+30 
+31   return {
+32     statusCode: 200,
+33     body: JSON.stringify({
+34       orderNumber: booking.orderNumber,
+35       qrCode: qrCode.toString('base64'),
+36       securityCode: booking._id.toString(),
+37     }),
+38   };
+39 };
+
+File: src/validateBooking.js
+1 const mongoose = require('mongoose');
+2 const Booking = require('./models/booking');
+3 
+4 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+5 
+6 module.exports.handler = async (event) => {
+7   const { qrCode } = JSON.parse(event.body);
+8   const qrCodeData = JSON.parse(Buffer.from(qrCode, 'base64').toString('utf8'));
+9 
+10   const booking = await Booking.findById(qrCodeData.securityCode);
+11 
+12   if (!booking) {
+13     return {
+14       statusCode: 404,
+15       body: JSON.stringify({ message: 'Booking not found' }),
+16     };
+17   }
+18 
+19   return {
+20     statusCode: 200,
+21     body: JSON.stringify({
+22       firstName: booking.firstName,
+23       lastName: booking.lastName,
+24       birthdate: booking.birthdate,
+25       selectedTime: booking.selectedTime,
+26     }),
+27   };
+28 };
+
+File: src/processBooking.js
+1 const mongoose = require('mongoose');
+2 const Booking = require('./models/booking');
+3 const Capacity = require('./models/capacity');
+4 
+5 mongoose.connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true });
+6 
+7 module.exports.handler = async (event) => {
+8   const { orderNumber, capacityCount } = JSON.parse(event.body);
+9 
+10   const booking = await Booking.findOne({ orderNumber });
+11 
+12   if (!booking) {
+13     return {
+14       statusCode: 404,
+15       body: JSON.stringify({ message: 'Booking not found' }),
+16     };
+17   }
+18 
+19   booking.processed = true;
+20   await booking.save();
+21 
+22   const today = new Date().setHours(0, 0, 0, 0);
+23   let capacity = await Capacity.findOne({ date: today });
+24 
+25   if (!capacity) {
+26     capacity = new Capacity({
+27       date: today,
+28       maxCapacity: capacityCount,
+29       currentCount: 0,
+30     });
+31   }
+32 
+33   capacity.currentCount += 1;
+34   await capacity.save();
+35 
+36   return {
+37     statusCode: 200,
+38     body: JSON.stringify({ message: 'Booking processed successfully' }),
+39   };
+40 };
+
+File: src/models/booking.js
+1 const mongoose = require('mongoose');
+2 
+3 const bookingSchema = new mongoose.Schema({
+4   firstName: String,
+5   lastName: String,
+6   birthdate: Date,
+7   selectedTime: Date,
+8   orderNumber: Number,
+9   processed: { type: Boolean, default: false },
+10 });
+11 
+12 module.exports = mongoose.model('Booking', bookingSchema);
+
+File: src/models/capacity.js
+1 const mongoose = require('mongoose');
+2 
+3 const capacitySchema = new mongoose.Schema({
+4   date: { type: Date, unique: true },
+5   maxCapacity: Number,
+6   currentCount: { type: Number, default: 0 },
+7 });
+8 
+9 module.exports = mongoose.model('Capacity', capacitySchema);
+
+File: (Flutter)
+1 name: border_crossing_queue_management
+2 description: A mobile app for managing border crossing queues.
+3 
+4 dependencies:
+5   flutter:
+6     sdk: flutter
+7   http: ^0.13.3
+8   qr_code_scanner: ^0.3.1
+9 
+10 dev_dependencies:
+11   flutter_test:
+12     sdk: flutter
+
+File: (Node.js)
+1 {
+2   "name": "border-crossing-queue-management",
+3   "version": "1.0.0",
+4   "description": "Serverless backend for Border Crossing Queue Management System",
+5   "main": "handler.js",
+6   "scripts": {
+7     "deploy": "serverless deploy",
+8     "offline": "serverless offline"
+9   },
+10   "dependencies": {
+11     "aws-sdk": "^2.814.0",
+12     "mongoose": "^5.12.3",
+13     "jsonwebtoken": "^8.5.1",
+14     "qr-image": "^3.2.0"
+15   },
+16   "devDependencies": {
+17     "serverless-offline": "^6.8.0"
+18   }
+19 }
+
+```
+
+================================== Ai Message ==================================
+
+```sh
+#!/bin/bash
+
+# Install dependencies for Flutter
+flutter pub get
+
+# Install dependencies for Node.js
+npm install
+
+# Run the Flutter app
+flutter run lib/main.dart &
+
+# Run the serverless backend offline
+npx serverless offline &
+
+# Wait for all background processes to finish
+wait
+```

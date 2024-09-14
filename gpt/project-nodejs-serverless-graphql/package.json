@@ -1,0 +1,23 @@
+{
+  "name": "border-crossing-queue-management",
+  "version": "1.0.0",
+  "description": "A border crossing queue management system using GraphQL, AWS Lambda, and MongoDB.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "deploy": "serverless deploy"
+  },
+  "dependencies": {
+    "apollo-server-lambda": "^2.25.2",
+    "graphql": "^15.5.0",
+    "mongoose": "^5.12.3",
+    "jsonwebtoken": "^8.5.1",
+    "serverless": "^2.37.2",
+    "serverless-offline": "^6.8.0"
+  },
+  "devDependencies": {
+    "eslint": "^7.23.0"
+  },
+  "author": "Your Name",
+  "license": "ISC"
+}

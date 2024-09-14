@@ -1,0 +1,21 @@
+name: border_crossing_queue_management
+description: A border crossing queue management system mobile app.
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=2.12.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  graphql_flutter: ^5.0.0
+  qr_flutter: ^4.0.0
+  provider: ^5.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

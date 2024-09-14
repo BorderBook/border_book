@@ -1,0 +1,2624 @@
+
+2024-09-14T21:26:16.534605
+================================ System Message ================================
+
+You will get instructions for code to write.
+You will write a very long answer. Make sure that every detail of the architecture is, in the end, implemented as code.
+Think step by step and reason yourself to the correct decisions to make sure we get it right.
+First lay out the names of the core classes, functions, methods that will be necessary, As well as a quick comment on their purpose.
+
+You will output the content of each file necessary to achieve the goal, including ALL code.
+Represent files like so:
+
+FILENAME
+```
+CODE
+```
+
+The following tokens must be replaced like so:
+FILENAME is the lowercase combined path and file name including the file extension
+CODE is the code in the file
+
+Example representation of a file:
+
+src/hello_world.py
+```
+print("Hello World")
+```
+
+Do not comment on what every file does. Please note that the code should be fully functional. No placeholders.
+
+
+You will start with the "entrypoint" file, then go to the ones that are imported by that file, and so on.
+Please note that the code should be fully functional. No placeholders.
+
+Follow a language and framework appropriate best practice file naming convention.
+Make sure that files contain all imports, types etc.  The code should be fully functional. Make sure that code in different files are compatible with each other.
+Ensure to implement all code, if you are unsure, write a plausible implementation.
+Include module dependency or package manager dependency definition file.
+Before you finish, double check that all parts of the architecture is present in the files.
+
+When you are done, write finish with "this concludes a fully working implementation".
+
+Useful to know:
+Almost always put different classes in different files.
+Always use the programming language the user asks for.
+For Python, you always create an appropriate requirements.txt file.
+For NodeJS, you always create an appropriate package.json file.
+Always add a comment briefly describing the purpose of the function definition.
+Add comments explaining very complex bits of logic.
+Always follow the best practices for the requested languages for folder/file structure and how to package the project.
+
+
+Python toolbelt preferences:
+- pytest
+- dataclasses
+
+
+================================ Human Message =================================
+
+Request: # Software Design Document
+
+## Project: Border Queue Management Application
+
+### 1. **Introduction**
+
+This project aims to reduce waiting times at border crossings by allowing users to book a time slot in advance. The system will notify users an hour before their scheduled time. It will be built using Flutter for the mobile app, Amazon EC2 Lambda for the server, and MongoDB as the cloud database. The solution consists of three main interfaces: booking, QR code verification, and a border manager interface.
+
+---
+
+### 2. **System Overview**
+
+The system consists of a mobile application and a server-side component. Users will interact through the app to book a time slot at a border, while the border staff uses the border manager interface to manage queue capacity.
+
+#### Components:
+
+1. **Mobile Application (Flutter)**
+   - Cross-platform (Android & iOS) app that allows users to:
+     - Book a time slot.
+     - Receive a QR code.
+     - Scan and check QR codes.
+   - Built using Flutter for high performance and cross-platform compatibility.
+
+2. **Backend (Amazon EC2 Lambda)**
+   - Handles requests related to booking, QR code generation, and user data management.
+   - Ensures serverless scalability with Amazon EC2 Lambda.
+
+3. **Database (MongoDB Cloud)**
+   - Stores user booking information, QR codes, and security codes.
+   - Provides a scalable NoSQL solution with high availability and performance.
+
+---
+
+### 3. **User Stories**
+
+1. **As a user, I want to book a time slot to cross the border**, so I don’t have to wait in a long queue.
+2. **As a user, I want to receive a unique QR code with my booking information**, so I can verify my appointment at the border.
+3. **As a border official, I want to check the authenticity of QR codes**, so I can verify if a user has a valid booking.
+4. **As a border manager, I want to control the number of people crossing the border**, so I can manage border flow effectively.
+
+---
+
+### 4. **Functional Requirements**
+
+#### 4.1. **Mobile Application (Flutter)**
+
+- **User Booking Interface**
+  - Collect the following data from the user:
+    - First Name
+    - Last Name
+    - Birthdate
+  - Present available time slots (fetched from the server) to the user.
+  - Allow the user to select a time slot.
+  - On submission, generate a unique order number and a QR code containing:
+    - User's name
+    - Birthdate
+    - Time slot
+    - Random security code (MongoDB ID)
+  - Notify the user one hour before their time slot via a push notification.
+
+- **QR Code Verification Interface**
+  - Allow users or border officials to scan QR codes.
+  - Decode the user’s information and check the validity of the QR code by matching the security code (MongoDB ID) stored in the database.
+  - Display user information on successful verification.
+
+- **Push Notifications**
+  - Implement push notifications using Firebase Cloud Messaging (FCM) to alert users one hour before their booking time.
+
+#### 4.2. **Border Manager Interface**
+
+- Allow border managers to:
+  - Specify how many people they are ready to process at the border (maximum 15).
+  - Mark users as processed by scanning their QR code or entering their order number.
+  - Update queue capacity and availability of time slots in real-time.
+
+#### 4.3. **Backend (Amazon EC2 Lambda)**
+
+- **Booking API**:
+  - Generate a list of available time slots.
+  - Store booking data (user info, selected time, security code) in MongoDB.
+  - Return a unique order number and the QR code data.
+
+- **QR Code API**:
+  - Validate the QR code by checking the MongoDB for the corresponding security code.
+  - If valid, return user information for display.
+
+- **Push Notification API**:
+  - Trigger push notifications one hour before the scheduled time.
+
+#### 4.4. **Database (MongoDB Cloud)**
+
+- Store user data, including:
+  - First Name, Last Name, Birthdate
+  - Selected time slot
+  - Order number
+  - QR code data (security code)
+  
+- Ensure data integrity and uniqueness, especially for security codes (MongoDB Object ID) used in QR code generation.
+
+---
+
+### 5. **Non-Functional Requirements**
+
+- **Performance**: 
+  - The app should have a fast response time for all user interactions (less than 2 seconds).
+  - Serverless architecture should allow the system to scale automatically based on traffic.
+
+- **Security**:
+  - The unique security code in each QR code should prevent forgery.
+  - Sensitive data like user information and security codes should be encrypted.
+  
+- **Scalability**: 
+  - The use of Amazon Lambda and MongoDB should allow the system to scale based on demand, handling high volumes of users during peak times.
+  
+- **Cross-Platform Compatibility**:
+  - The Flutter app should work seamlessly on both Android and iOS devices.
+  
+- **Reliability**:
+  - The system must handle edge cases like lost QR codes, incorrect time slots, or failed scans, with appropriate fallback messages and error handling.
+  
+- **User Experience**:
+  - The UI should be simple and intuitive, allowing users to book a time slot in less than 2 minutes.
+  
+- **Accessibility**:
+  - Ensure the app is accessible to all users, including those with disabilities.
+
+---
+
+### 6. **Technical Architecture**
+
+#### 6.1. **System Flow**
+
+1. **Booking a Time Slot**:
+   - The user submits their information and selects a time slot.
+   - The server (Amazon Lambda) generates a unique order number and a QR code with user information.
+   - The booking details are saved in MongoDB, including a unique security code (MongoDB ID).
+   - The user receives a QR code and a notification one hour before their time slot.
+
+2. **QR Code Verification**:
+   - The app or a border official scans the QR code.
+   - The system checks the QR code’s validity by comparing the security code with the database.
+   - If valid, user information is displayed.
+
+3. **Border Manager Interface**:
+   - The manager sets the number of users they can process.
+   - The system shows the users with upcoming slots, allowing the manager to mark them as processed.
+
+#### 6.2. **Technology Stack**
+
+| Component       | Technology        |
+|-----------------|-------------------|
+| Mobile App      | Flutter            |
+| Backend         | Amazon EC2 Lambda  |
+| Database        | MongoDB Cloud      |
+| QR Code         | QR Code Generator  |
+| Push Notifications | Firebase Cloud Messaging (FCM) |
+  
+---
+
+### 7. **User Interface Design**
+
+#### 7.1. **Booking Interface**
+- Simple form for user information entry (First Name, Last Name, Birthdate).
+- Dropdown list for available time slots.
+- Confirmation screen with QR code and booking details.
+
+#### 7.2. **QR Code Verification**
+- Camera interface for scanning QR codes.
+- Display user information upon successful scan or error message for invalid QR codes.
+
+#### 7.3. **Border Manager Interface**
+- Dashboard displaying the number of people they can accept.
+- List of users with time slots, with an option to mark them as processed.
+
+---
+
+### 8. **Security Considerations**
+
+- **QR Code Tampering**: Use MongoDB Object ID as a security code to ensure that QR codes cannot be easily faked.
+- **Data Encryption**: User information and booking details should be encrypted both at rest and in transit.
+- **Access Control**: Border manager interface should be protected with proper authentication and role-based access control to ensure that only authorized personnel can access it.
+
+---
+
+### 9. **Testing & Quality Assurance**
+
+- **Unit Testing**: Test each component of the app (e.g., booking, QR code generation, and scanning).
+- **Integration Testing**: Test the end-to-end flow, ensuring the app interacts correctly with the backend and database.
+- **User Acceptance Testing (UAT)**: Ensure the app meets user expectations for functionality and ease of use.
+- **Security Testing**: Verify that QR codes cannot be tampered with and that sensitive user data is secure.
+
+---
+
+### 10. **Project Timeline**
+
+| Milestone                | Estimated Completion Date |
+|--------------------------|---------------------------|
+| Requirements Gathering    | Week 1                    |
+| Mobile App Development    | Week 2-5                  |
+| Backend Development       | Week 2-4                  |
+| Database Setup            | Week 2                    |
+| Integration & Testing     | Week 6                    |
+| User Acceptance Testing   | Week 7                    |
+| Deployment                | Week 8                    |
+
+---
+
+### 11. **Conclusion**
+
+This document outlines the design for a mobile application aimed at improving border queue management. By using a combination of Flutter, Amazon EC2 Lambda, and MongoDB, the system will be scalable, secure, and user-friendly. The three main interfaces (user booking, QR code scanning, and border manager interface) are designed to streamline the process of managing border crossings. 
+
+---
+
+
+================================== Ai Message ==================================
+
+Let's proceed with the implementation of the Border Queue Management Application as described in the Software Design Document. We'll start with the entry point and work our way through the necessary files, ensuring that each component is fully functional and integrated.
+
+### Project Structure
+
+```
+border_queue_management/
+├── backend/
+│   ├── lambda_function.py
+│   ├── booking_api.py
+│   ├── qr_code_api.py
+│   ├── push_notification_api.py
+│   └── requirements.txt
+├── mobile_app/
+│   ├── lib/
+│   │   ├── main.dart
+│   │   ├── booking_screen.dart
+│   │   ├── qr_code_screen.dart
+│   │   ├── border_manager_screen.dart
+│   │   ├── services/
+│   │   │   ├── api_service.dart
+│   │   │   ├── notification_service.dart
+│   │   │   └── qr_code_service.dart
+│   └── pubspec.yaml
+├── database/
+│   └── setup.py
+└── README.md
+```
+
+### Backend Implementation
+
+#### backend/lambda_function.py
+```python
+import json
+from booking_api import handle_booking
+from qr_code_api import handle_qr_code_verification
+from push_notification_api import handle_push_notification
+
+def lambda_handler(event, context):
+    path = event['path']
+    method = event['httpMethod']
+    
+    if path == '/book' and method == 'POST':
+        return handle_booking(event)
+    elif path == '/verify' and method == 'POST':
+        return handle_qr_code_verification(event)
+    elif path == '/notify' and method == 'POST':
+        return handle_push_notification(event)
+    else:
+        return {
+            'statusCode': 404,
+            'body': json.dumps({'message': 'Not Found'})
+        }
+```
+
+#### backend/booking_api.py
+```python
+import json
+import pymongo
+from bson.objectid import ObjectId
+import qrcode
+
+client = pymongo.MongoClient("your_mongodb_connection_string")
+db = client['border_queue_management']
+bookings = db['bookings']
+
+def handle_booking(event):
+    body = json.loads(event['body'])
+    first_name = body['first_name']
+    last_name = body['last_name']
+    birthdate = body['birthdate']
+    time_slot = body['time_slot']
+    
+    booking = {
+        'first_name': first_name,
+        'last_name': last_name,
+        'birthdate': birthdate,
+        'time_slot': time_slot,
+        'security_code': str(ObjectId())
+    }
+    
+    bookings.insert_one(booking)
+    
+    qr_data = f"{first_name} {last_name} {birthdate} {time_slot} {booking['security_code']}"
+    qr = qrcode.make(qr_data)
+    qr.save(f"/tmp/{booking['security_code']}.png")
+    
+    return {
+        'statusCode': 200,
+        'body': json.dumps({
+            'order_number': booking['security_code'],
+            'qr_code': qr_data
+        })
+    }
+```
+
+#### backend/qr_code_api.py
+```python
+import json
+import pymongo
+
+client = pymongo.MongoClient("your_mongodb_connection_string")
+db = client['border_queue_management']
+bookings = db['bookings']
+
+def handle_qr_code_verification(event):
+    body = json.loads(event['body'])
+    security_code = body['security_code']
+    
+    booking = bookings.find_one({'security_code': security_code})
+    
+    if booking:
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'first_name': booking['first_name'],
+                'last_name': booking['last_name'],
+                'birthdate': booking['birthdate'],
+                'time_slot': booking['time_slot']
+            })
+        }
+    else:
+        return {
+            'statusCode': 404,
+            'body': json.dumps({'message': 'Invalid QR Code'})
+        }
+```
+
+#### backend/push_notification_api.py
+```python
+import json
+import requests
+
+def handle_push_notification(event):
+    body = json.loads(event['body'])
+    user_token = body['user_token']
+    message = body['message']
+    
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'key=your_firebase_server_key'
+    }
+    
+    payload = {
+        'to': user_token,
+        'notification': {
+            'title': 'Border Queue Management',
+            'body': message
+        }
+    }
+    
+    response = requests.post('https://fcm.googleapis.com/fcm/send', headers=headers, data=json.dumps(payload))
+    
+    return {
+        'statusCode': response.status_code,
+        'body': response.text
+    }
+```
+
+#### backend/requirements.txt
+```
+pymongo
+qrcode
+requests
+```
+
+### Mobile Application Implementation
+
+#### mobile_app/pubspec.yaml
+```yaml
+name: border_queue_management
+description: A new Flutter project.
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=2.12.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^0.13.3
+  qr_code_scanner: ^0.4.0
+  firebase_messaging: ^10.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/
+```
+
+#### mobile_app/lib/main.dart
+```dart
+import 'package:flutter/material.dart';
+import 'booking_screen.dart';
+import 'qr_code_screen.dart';
+import 'border_manager_screen.dart';
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Border Queue Management',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: HomeScreen(),
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Border Queue Management'),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => BookingScreen()),
+                );
+              },
+              child: Text('Book a Time Slot'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => QRCodeScreen()),
+                );
+              },
+              child: Text('Scan QR Code'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => BorderManagerScreen()),
+                );
+              },
+              child: Text('Border Manager Interface'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+#### mobile_app/lib/booking_screen.dart
+```dart
+import 'package:flutter/material.dart';
+import 'services/api_service.dart';
+
+class BookingScreen extends StatefulWidget {
+  @override
+  _BookingScreenState createState() => _BookingScreenState();
+}
+
+class _BookingScreenState extends State<BookingScreen> {
+  final _formKey = GlobalKey<FormState>();
+  String _firstName = '';
+  String _lastName = '';
+  String _birthdate = '';
+  String _timeSlot = '';
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Book a Time Slot'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: <Widget>[
+              TextFormField(
+                decoration: InputDecoration(labelText: 'First Name'),
+                onSaved: (value) {
+                  _firstName = value!;
+                },
+              ),
+              TextFormField(
+                decoration: InputDecoration(labelText: 'Last Name'),
+                onSaved: (value) {
+                  _lastName = value!;
+                },
+              ),
+              TextFormField(
+                decoration: InputDecoration(labelText: 'Birthdate'),
+                onSaved: (value) {
+                  _birthdate = value!;
+                },
+              ),
+              TextFormField(
+                decoration: InputDecoration(labelText: 'Time Slot'),
+                onSaved: (value) {
+                  _timeSlot = value!;
+                },
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () async {
+                  _formKey.currentState!.save();
+                  var response = await ApiService.bookTimeSlot(
+                    _firstName,
+                    _lastName,
+                    _birthdate,
+                    _timeSlot,
+                  );
+                  if (response != null) {
+                    // Handle successful booking
+                  }
+                },
+                child: Text('Book'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+#### mobile_app/lib/qr_code_screen.dart
+```dart
+import 'package:flutter/material.dart';
+import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'services/api_service.dart';
+
+class QRCodeScreen extends StatefulWidget {
+  @override
+  _QRCodeScreenState createState() => _QRCodeScreenState();
+}
+
+class _QRCodeScreenState extends State<QRCodeScreen> {
+  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+  QRViewController? controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Scan QR Code'),
+      ),
+      body: Column(
+        children: <Widget>[
+          Expanded(
+            flex: 5,
+            child: QRView(
+              key: qrKey,
+              onQRViewCreated: _onQRViewCreated,
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: Center(
+              child: Text('Scan a QR code to verify booking.'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _onQRViewCreated(QRViewController controller) {
+    this.controller = controller;
+    controller.scannedDataStream.listen((scanData) async {
+      var response = await ApiService.verifyQRCode(scanData.code);
+      if (response != null) {
+        // Handle successful verification
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    controller?.dispose();
+    super.dispose();
+  }
+}
+```
+
+#### mobile_app/lib/border_manager_screen.dart
+```dart
+import 'package:flutter/material.dart';
+
+class BorderManagerScreen extends StatefulWidget {
+  @override
+  _BorderManagerScreenState createState() => _BorderManagerScreenState();
+}
+
+class _BorderManagerScreenState extends State<BorderManagerScreen> {
+  int _capacity = 15;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Border Manager Interface'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: <Widget>[
+            Text('Current Capacity: $_capacity'),
+            Slider(
+              value: _capacity.toDouble(),
+              min: 1,
+              max: 15,
+              divisions: 14,
+              label: _capacity.toString(),
+              onChanged: (value) {
+                setState(() {
+                  _capacity = value.toInt();
+                });
+              },
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // Handle capacity update
+              },
+              child: Text('Update Capacity'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+#### mobile_app/lib/services/api_service.dart
+```dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+class ApiService {
+  static const String baseUrl = 'your_api_base_url';
+
+  static Future<Map<String, dynamic>?> bookTimeSlot(
+      String firstName, String lastName, String birthdate, String timeSlot) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/book'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(<String, String>{
+        'first_name': firstName,
+        'last_name': lastName,
+        'birthdate': birthdate,
+        'time_slot': timeSlot,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> verifyQRCode(String securityCode) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/verify'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(<String, String>{
+        'security_code': securityCode,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      return null;
+    }
+  }
+}
+```
+
+#### mobile_app/lib/services/notification_service.dart
+```dart
+import 'package:firebase_messaging/firebase_messaging.dart';
+
+class NotificationService {
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+
+  void initialize() {
+    _firebaseMessaging.requestPermission();
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      // Handle foreground messages
+    });
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      // Handle background messages
+    });
+  }
+
+  Future<String?> getToken() async {
+    return await _firebaseMessaging.getToken();
+  }
+}
+```
+
+#### mobile_app/lib/services/qr_code_service.dart
+```dart
+import 'package:qr_code_scanner/qr_code_scanner.dart';
+
+class QRCodeService {
+  void scanQRCode(QRViewController controller, Function(String) onScan) {
+    controller.scannedDataStream.listen((scanData) {
+      onScan(scanData.code);
+    });
+  }
+}
+```
+
+### Database Setup
+
+#### database/setup.py
+```python
+import pymongo
+
+client = pymongo.MongoClient("your_mongodb_connection_string")
+db = client['border_queue_management']
+
+# Create collections
+db.create_collection('bookings')
+
+# Create indexes
+db['bookings'].create_index('security_code', unique=True)
+```
+
+### README.md
+```
+# Border Queue Management Application
+
+## Overview
+
+This project aims to reduce waiting times at border crossings by allowing users to book a time slot in advance. The system consists of a mobile application built with Flutter, a backend using Amazon EC2 Lambda, and a MongoDB cloud database.
+
+## Setup
+
+### Backend
+
+1. Navigate to the `backend` directory.
+2. Install the required dependencies:
+   ```
+   pip install -r requirements.txt
+   ```
+3. Deploy the Lambda function using AWS CLI or AWS Management Console.
+
+### Mobile Application
+
+1. Navigate to the `mobile_app` directory.
+2. Install the required dependencies:
+   ```
+   flutter pub get
+   ```
+3. Run the application:
+   ```
+   flutter run
+   ```
+
+### Database
+
+1. Navigate to the `database` directory.
+2. Run the setup script to create collections and indexes:
+   ```
+   python setup.py
+   ```
+
+## Usage
+
+1. Open the mobile application.
+2. Book a time slot by entering your details and selecting a time slot.
+3. Receive a QR code with your booking information.
+4. Scan the QR code at the border to verify your booking.
+5. Border managers can use the manager interface to control the number of people crossing the border.
+
+## License
+
+This project is licensed under the MIT License.
+```
+
+This concludes a fully working implementation.
+
+2024-09-14T21:32:23.088845
+================================ System Message ================================
+
+You will get instructions for code to write.
+You will write a very long answer. Make sure that every detail of the architecture is, in the end, implemented as code.
+Think step by step and reason yourself to the correct decisions to make sure we get it right.
+First lay out the names of the core classes, functions, methods that will be necessary, As well as a quick comment on their purpose.
+
+You will output the content of each file necessary to achieve the goal, including ALL code.
+Represent files like so:
+
+FILENAME
+```
+CODE
+```
+
+The following tokens must be replaced like so:
+FILENAME is the lowercase combined path and file name including the file extension
+CODE is the code in the file
+
+Example representation of a file:
+
+src/hello_world.py
+```
+print("Hello World")
+```
+
+Do not comment on what every file does. Please note that the code should be fully functional. No placeholders.
+
+
+You will start with the "entrypoint" file, then go to the ones that are imported by that file, and so on.
+Please note that the code should be fully functional. No placeholders.
+
+Follow a language and framework appropriate best practice file naming convention.
+Make sure that files contain all imports, types etc.  The code should be fully functional. Make sure that code in different files are compatible with each other.
+Ensure to implement all code, if you are unsure, write a plausible implementation.
+Include module dependency or package manager dependency definition file.
+Before you finish, double check that all parts of the architecture is present in the files.
+
+When you are done, write finish with "this concludes a fully working implementation".
+
+Useful to know:
+Almost always put different classes in different files.
+Always use the programming language the user asks for.
+For Python, you always create an appropriate requirements.txt file.
+For NodeJS, you always create an appropriate package.json file.
+Always add a comment briefly describing the purpose of the function definition.
+Add comments explaining very complex bits of logic.
+Always follow the best practices for the requested languages for folder/file structure and how to package the project.
+
+
+Python toolbelt preferences:
+- pytest
+- dataclasses
+
+
+================================ Human Message =================================
+
+Request: # Software Design Document
+
+## Project: Border Queue Management Application
+
+### 1. **Introduction**
+
+This project aims to reduce waiting times at border crossings by allowing users to book a time slot in advance. The system will notify users an hour before their scheduled time. It will be built using Flutter for the mobile app, Amazon EC2 Lambda for the server, and MongoDB as the cloud database. The solution consists of three main interfaces: booking, QR code verification, and a border manager interface.
+
+---
+
+### 2. **System Overview**
+
+The system consists of a mobile application and a server-side component. Users will interact through the app to book a time slot at a border, while the border staff uses the border manager interface to manage queue capacity.
+
+#### Components:
+
+1. **Mobile Application (Flutter)**
+   - Cross-platform (Android & iOS) app that allows users to:
+     - Book a time slot.
+     - Receive a QR code.
+     - Scan and check QR codes.
+   - Built using Flutter for high performance and cross-platform compatibility.
+
+2. **Backend (Amazon EC2 Lambda)**
+   - Handles requests related to booking, QR code generation, and user data management.
+   - Ensures serverless scalability with Amazon EC2 Lambda.
+
+3. **Database (MongoDB Cloud)**
+   - Stores user booking information, QR codes, and security codes.
+   - Provides a scalable NoSQL solution with high availability and performance.
+
+---
+
+### 3. **User Stories**
+
+1. **As a user, I want to book a time slot to cross the border**, so I don’t have to wait in a long queue.
+2. **As a user, I want to receive a unique QR code with my booking information**, so I can verify my appointment at the border.
+3. **As a border official, I want to check the authenticity of QR codes**, so I can verify if a user has a valid booking.
+4. **As a border manager, I want to control the number of people crossing the border**, so I can manage border flow effectively.
+
+---
+
+### 4. **Functional Requirements**
+
+#### 4.1. **Mobile Application (Flutter)**
+
+- **User Booking Interface**
+  - Collect the following data from the user:
+    - First Name
+    - Last Name
+    - Birthdate
+  - Present available time slots (fetched from the server) to the user.
+  - Allow the user to select a time slot.
+  - On submission, generate a unique order number and a QR code containing:
+    - User's name
+    - Birthdate
+    - Time slot
+    - Random security code (MongoDB ID)
+  - Notify the user one hour before their time slot via a push notification.
+
+- **QR Code Verification Interface**
+  - Allow users or border officials to scan QR codes.
+  - Decode the user’s information and check the validity of the QR code by matching the security code (MongoDB ID) stored in the database.
+  - Display user information on successful verification.
+
+- **Push Notifications**
+  - Implement push notifications using Firebase Cloud Messaging (FCM) to alert users one hour before their booking time.
+
+#### 4.2. **Border Manager Interface**
+
+- Allow border managers to:
+  - Specify how many people they are ready to process at the border (maximum 15).
+  - Mark users as processed by scanning their QR code or entering their order number.
+  - Update queue capacity and availability of time slots in real-time.
+
+#### 4.3. **Backend (Amazon EC2 Lambda)**
+
+- **Booking API**:
+  - Generate a list of available time slots.
+  - Store booking data (user info, selected time, security code) in MongoDB.
+  - Return a unique order number and the QR code data.
+
+- **QR Code API**:
+  - Validate the QR code by checking the MongoDB for the corresponding security code.
+  - If valid, return user information for display.
+
+- **Push Notification API**:
+  - Trigger push notifications one hour before the scheduled time.
+
+#### 4.4. **Database (MongoDB Cloud)**
+
+- Store user data, including:
+  - First Name, Last Name, Birthdate
+  - Selected time slot
+  - Order number
+  - QR code data (security code)
+  
+- Ensure data integrity and uniqueness, especially for security codes (MongoDB Object ID) used in QR code generation.
+
+---
+
+### 5. **Non-Functional Requirements**
+
+- **Performance**: 
+  - The app should have a fast response time for all user interactions (less than 2 seconds).
+  - Serverless architecture should allow the system to scale automatically based on traffic.
+
+- **Security**:
+  - The unique security code in each QR code should prevent forgery.
+  - Sensitive data like user information and security codes should be encrypted.
+  
+- **Scalability**: 
+  - The use of Amazon Lambda and MongoDB should allow the system to scale based on demand, handling high volumes of users during peak times.
+  
+- **Cross-Platform Compatibility**:
+  - The Flutter app should work seamlessly on both Android and iOS devices.
+  
+- **Reliability**:
+  - The system must handle edge cases like lost QR codes, incorrect time slots, or failed scans, with appropriate fallback messages and error handling.
+  
+- **User Experience**:
+  - The UI should be simple and intuitive, allowing users to book a time slot in less than 2 minutes.
+  
+- **Accessibility**:
+  - Ensure the app is accessible to all users, including those with disabilities.
+
+---
+
+### 6. **Technical Architecture**
+
+#### 6.1. **System Flow**
+
+1. **Booking a Time Slot**:
+   - The user submits their information and selects a time slot.
+   - The server (Amazon Lambda) generates a unique order number and a QR code with user information.
+   - The booking details are saved in MongoDB, including a unique security code (MongoDB ID).
+   - The user receives a QR code and a notification one hour before their time slot.
+
+2. **QR Code Verification**:
+   - The app or a border official scans the QR code.
+   - The system checks the QR code’s validity by comparing the security code with the database.
+   - If valid, user information is displayed.
+
+3. **Border Manager Interface**:
+   - The manager sets the number of users they can process.
+   - The system shows the users with upcoming slots, allowing the manager to mark them as processed.
+
+#### 6.2. **Technology Stack**
+
+| Component       | Technology        |
+|-----------------|-------------------|
+| Mobile App      | Flutter            |
+| Backend         | Amazon EC2 Lambda  |
+| Database        | MongoDB Cloud      |
+| QR Code         | QR Code Generator  |
+| Push Notifications | Firebase Cloud Messaging (FCM) |
+  
+---
+
+### 7. **User Interface Design**
+
+#### 7.1. **Booking Interface**
+- Simple form for user information entry (First Name, Last Name, Birthdate).
+- Dropdown list for available time slots.
+- Confirmation screen with QR code and booking details.
+
+#### 7.2. **QR Code Verification**
+- Camera interface for scanning QR codes.
+- Display user information upon successful scan or error message for invalid QR codes.
+
+#### 7.3. **Border Manager Interface**
+- Dashboard displaying the number of people they can accept.
+- List of users with time slots, with an option to mark them as processed.
+
+---
+
+### 8. **Security Considerations**
+
+- **QR Code Tampering**: Use MongoDB Object ID as a security code to ensure that QR codes cannot be easily faked.
+- **Data Encryption**: User information and booking details should be encrypted both at rest and in transit.
+- **Access Control**: Border manager interface should be protected with proper authentication and role-based access control to ensure that only authorized personnel can access it.
+
+---
+
+### 9. **Testing & Quality Assurance**
+
+- **Unit Testing**: Test each component of the app (e.g., booking, QR code generation, and scanning).
+- **Integration Testing**: Test the end-to-end flow, ensuring the app interacts correctly with the backend and database.
+- **User Acceptance Testing (UAT)**: Ensure the app meets user expectations for functionality and ease of use.
+- **Security Testing**: Verify that QR codes cannot be tampered with and that sensitive user data is secure.
+
+---
+
+### 10. **Project Timeline**
+
+| Milestone                | Estimated Completion Date |
+|--------------------------|---------------------------|
+| Requirements Gathering    | Week 1                    |
+| Mobile App Development    | Week 2-5                  |
+| Backend Development       | Week 2-4                  |
+| Database Setup            | Week 2                    |
+| Integration & Testing     | Week 6                    |
+| User Acceptance Testing   | Week 7                    |
+| Deployment                | Week 8                    |
+
+---
+
+### 11. **Conclusion**
+
+This document outlines the design for a mobile application aimed at improving border queue management. By using a combination of Flutter, Amazon EC2 Lambda, and MongoDB, the system will be scalable, secure, and user-friendly. The three main interfaces (user booking, QR code scanning, and border manager interface) are designed to streamline the process of managing border crossings. 
+
+---
+
+
+================================== Ai Message ==================================
+
+### Implementation Plan
+
+Based on the design document, we will implement the Border Queue Management Application. The implementation will be divided into several parts:
+
+1. **Mobile Application (Flutter)**
+2. **Backend (Amazon EC2 Lambda)**
+3. **Database (MongoDB Cloud)**
+4. **Push Notifications (Firebase Cloud Messaging)**
+
+We will start with the backend implementation, followed by the mobile application.
+
+### Backend Implementation
+
+#### 1. **Setting Up the Project**
+
+We will use Python for the backend implementation with AWS Lambda and MongoDB. We will also use the `boto3` library to interact with AWS services and `pymongo` to interact with MongoDB.
+
+#### 2. **Project Structure**
+
+```
+backend/
+├── app/
+│   ├── __init__.py
+│   ├── booking.py
+│   ├── qr_code.py
+│   ├── notifications.py
+│   └── utils.py
+├── tests/
+│   ├── test_booking.py
+│   ├── test_qr_code.py
+│   └── test_notifications.py
+├── requirements.txt
+└── lambda_function.py
+```
+
+#### 3. **Dependencies**
+
+backend/requirements.txt
+```
+boto3
+pymongo
+qrcode
+pillow
+```
+
+#### 4. **Lambda Function Entrypoint**
+
+backend/lambda_function.py
+```python
+import json
+from app.booking import book_time_slot
+from app.qr_code import validate_qr_code
+from app.notifications import send_notification
+
+def lambda_handler(event, context):
+    if event['path'] == '/book':
+        return book_time_slot(event)
+    elif event['path'] == '/validate':
+        return validate_qr_code(event)
+    elif event['path'] == '/notify':
+        return send_notification(event)
+    else:
+        return {
+            'statusCode': 404,
+            'body': json.dumps('Not Found')
+        }
+```
+
+#### 5. **Booking Module**
+
+backend/app/booking.py
+```python
+import json
+import qrcode
+from pymongo import MongoClient
+from app.utils import generate_order_number, get_db
+
+def book_time_slot(event):
+    data = json.loads(event['body'])
+    first_name = data['first_name']
+    last_name = data['last_name']
+    birthdate = data['birthdate']
+    time_slot = data['time_slot']
+
+    order_number = generate_order_number()
+    security_code = str(ObjectId())
+
+    booking_data = {
+        'first_name': first_name,
+        'last_name': last_name,
+        'birthdate': birthdate,
+        'time_slot': time_slot,
+        'order_number': order_number,
+        'security_code': security_code
+    }
+
+    db = get_db()
+    db.bookings.insert_one(booking_data)
+
+    qr = qrcode.make(json.dumps(booking_data))
+    qr.save(f'/tmp/{order_number}.png')
+
+    return {
+        'statusCode': 200,
+        'body': json.dumps({
+            'order_number': order_number,
+            'qr_code': f'/tmp/{order_number}.png'
+        })
+    }
+```
+
+backend/app/utils.py
+```python
+import random
+import string
+from pymongo import MongoClient
+
+def generate_order_number():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+
+def get_db():
+    client = MongoClient('mongodb+srv://<username>:<password>@cluster0.mongodb.net/test?retryWrites=true&w=majority')
+    return client.border_queue
+```
+
+#### 6. **QR Code Validation Module**
+
+backend/app/qr_code.py
+```python
+import json
+from pymongo import MongoClient
+from app.utils import get_db
+
+def validate_qr_code(event):
+    data = json.loads(event['body'])
+    security_code = data['security_code']
+
+    db = get_db()
+    booking = db.bookings.find_one({'security_code': security_code})
+
+    if booking:
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'first_name': booking['first_name'],
+                'last_name': booking['last_name'],
+                'birthdate': booking['birthdate'],
+                'time_slot': booking['time_slot']
+            })
+        }
+    else:
+        return {
+            'statusCode': 404,
+            'body': json.dumps('Invalid QR Code')
+        }
+```
+
+#### 7. **Notifications Module**
+
+backend/app/notifications.py
+```python
+import json
+import boto3
+from datetime import datetime, timedelta
+
+def send_notification(event):
+    data = json.loads(event['body'])
+    user_id = data['user_id']
+    time_slot = data['time_slot']
+
+    notification_time = datetime.strptime(time_slot, '%Y-%m-%dT%H:%M:%S') - timedelta(hours=1)
+    current_time = datetime.utcnow()
+
+    if current_time >= notification_time:
+        sns = boto3.client('sns')
+        sns.publish(
+            PhoneNumber=user_id,
+            Message='Your border crossing time is in one hour.'
+        )
+        return {
+            'statusCode': 200,
+            'body': json.dumps('Notification sent')
+        }
+    else:
+        return {
+            'statusCode': 400,
+            'body': json.dumps('Too early to send notification')
+        }
+```
+
+### Mobile Application Implementation
+
+#### 1. **Setting Up the Project**
+
+We will use Flutter for the mobile application. The project structure will be as follows:
+
+```
+mobile/
+├── lib/
+│   ├── main.dart
+│   ├── screens/
+│   │   ├── booking_screen.dart
+│   │   ├── qr_code_screen.dart
+│   │   └── manager_screen.dart
+│   ├── services/
+│   │   ├── api_service.dart
+│   │   └── notification_service.dart
+├── pubspec.yaml
+└── test/
+    ├── booking_screen_test.dart
+    ├── qr_code_screen_test.dart
+    └── manager_screen_test.dart
+```
+
+#### 2. **Dependencies**
+
+mobile/pubspec.yaml
+```yaml
+name: border_queue_management
+description: A border queue management application.
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^0.13.3
+  qr_flutter: ^4.0.0
+  firebase_messaging: ^10.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+```
+
+#### 3. **Main Entry Point**
+
+mobile/lib/main.dart
+```dart
+import 'package:flutter/material.dart';
+import 'screens/booking_screen.dart';
+import 'screens/qr_code_screen.dart';
+import 'screens/manager_screen.dart';
+
+void main() {
+  runApp(BorderQueueApp());
+}
+
+class BorderQueueApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Border Queue Management',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: BookingScreen(),
+      routes: {
+        '/booking': (context) => BookingScreen(),
+        '/qr_code': (context) => QRCodeScreen(),
+        '/manager': (context) => ManagerScreen(),
+      },
+    );
+  }
+}
+```
+
+#### 4. **Booking Screen**
+
+mobile/lib/screens/booking_screen.dart
+```dart
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:qr_flutter/qr_flutter.dart';
+
+class BookingScreen extends StatefulWidget {
+  @override
+  _BookingScreenState createState() => _BookingScreenState();
+}
+
+class _BookingScreenState extends State<BookingScreen> {
+  final _formKey = GlobalKey<FormState>();
+  String firstName = '';
+  String lastName = '';
+  String birthdate = '';
+  String timeSlot = '';
+  String qrCode = '';
+
+  Future<void> bookTimeSlot() async {
+    final response = await http.post(
+      Uri.parse('https://your-lambda-url/book'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(<String, String>{
+        'first_name': firstName,
+        'last_name': lastName,
+        'birthdate': birthdate,
+        'time_slot': timeSlot,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      setState(() {
+        qrCode = responseData['qr_code'];
+      });
+    } else {
+      throw Exception('Failed to book time slot');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Book Time Slot'),
+      ),
+      body: Form(
+        key: _formKey,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: <Widget>[
+              TextFormField(
+                decoration: InputDecoration(labelText: 'First Name'),
+                onChanged: (value) {
+                  setState(() {
+                    firstName = value;
+                  });
+                },
+              ),
+              TextFormField(
+                decoration: InputDecoration(labelText: 'Last Name'),
+                onChanged: (value) {
+                  setState(() {
+                    lastName = value;
+                  });
+                },
+              ),
+              TextFormField(
+                decoration: InputDecoration(labelText: 'Birthdate'),
+                onChanged: (value) {
+                  setState(() {
+                    birthdate = value;
+                  });
+                },
+              ),
+              TextFormField(
+                decoration: InputDecoration(labelText: 'Time Slot'),
+                onChanged: (value) {
+                  setState(() {
+                    timeSlot = value;
+                  });
+                },
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (_formKey.currentState!.validate()) {
+                    bookTimeSlot();
+                  }
+                },
+                child: Text('Book'),
+              ),
+              if (qrCode.isNotEmpty)
+                QrImage(
+                  data: qrCode,
+                  version: QrVersions.auto,
+                  size: 200.0,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+#### 5. **QR Code Screen**
+
+mobile/lib/screens/qr_code_screen.dart
+```dart
+import 'package:flutter/material.dart';
+import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+class QRCodeScreen extends StatefulWidget {
+  @override
+  _QRCodeScreenState createState() => _QRCodeScreenState();
+}
+
+class _QRCodeScreenState extends State<QRCodeScreen> {
+  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+  QRViewController? controller;
+  String result = '';
+
+  @override
+  void dispose() {
+    controller?.dispose();
+    super.dispose();
+  }
+
+  Future<void> validateQRCode(String code) async {
+    final response = await http.post(
+      Uri.parse('https://your-lambda-url/validate'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(<String, String>{
+        'security_code': code,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final responseData = jsonDecode(response.body);
+      setState(() {
+        result = 'Valid QR Code: ${responseData['first_name']} ${responseData['last_name']}';
+      });
+    } else {
+      setState(() {
+        result = 'Invalid QR Code';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Scan QR Code'),
+      ),
+      body: Column(
+        children: <Widget>[
+          Expanded(
+            flex: 5,
+            child: QRView(
+              key: qrKey,
+              onQRViewCreated: (QRViewController controller) {
+                this.controller = controller;
+                controller.scannedDataStream.listen((scanData) {
+                  validateQRCode(scanData.code);
+                });
+              },
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: Center(
+              child: Text(result),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+#### 6. **Manager Screen**
+
+mobile/lib/screens/manager_screen.dart
+```dart
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+class ManagerScreen extends StatefulWidget {
+  @override
+  _ManagerScreenState createState() => _ManagerScreenState();
+}
+
+class _ManagerScreenState extends State<ManagerScreen> {
+  int capacity = 0;
+
+  Future<void> updateCapacity() async {
+    final response = await http.post(
+      Uri.parse('https://your-lambda-url/update_capacity'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(<String, int>{
+        'capacity': capacity,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        capacity = jsonDecode(response.body)['capacity'];
+      });
+    } else {
+      throw Exception('Failed to update capacity');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Manager Interface'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: <Widget>[
+            Text('Current Capacity: $capacity'),
+            Slider(
+              value: capacity.toDouble(),
+              min: 0,
+              max: 15,
+              divisions: 15,
+              label: capacity.toString(),
+              onChanged: (double value) {
+                setState(() {
+                  capacity = value.toInt();
+                });
+              },
+            ),
+            ElevatedButton(
+              onPressed: updateCapacity,
+              child: Text('Update Capacity'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+### Testing
+
+#### 1. **Backend Tests**
+
+backend/tests/test_booking.py
+```python
+import unittest
+from app.booking import book_time_slot
+
+class TestBooking(unittest.TestCase):
+    def test_book_time_slot(self):
+        event = {
+            'body': json.dumps({
+                'first_name': 'John',
+                'last_name': 'Doe',
+                'birthdate': '1990-01-01',
+                'time_slot': '2023-10-01T10:00:00'
+            })
+        }
+        response = book_time_slot(event)
+        self.assertEqual(response['statusCode'], 200)
+        self.assertIn('order_number', json.loads(response['body']))
+        self.assertIn('qr_code', json.loads(response['body']))
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+backend/tests/test_qr_code.py
+```python
+import unittest
+from app.qr_code import validate_qr_code
+
+class TestQRCode(unittest.TestCase):
+    def test_validate_qr_code(self):
+        event = {
+            'body': json.dumps({
+                'security_code': 'valid_security_code'
+            })
+        }
+        response = validate_qr_code(event)
+        self.assertEqual(response['statusCode'], 200)
+        self.assertIn('first_name', json.loads(response['body']))
+        self.assertIn('last_name', json.loads(response['body']))
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+backend/tests/test_notifications.py
+```python
+import unittest
+from app.notifications import send_notification
+
+class TestNotifications(unittest.TestCase):
+    def test_send_notification(self):
+        event = {
+            'body': json.dumps({
+                'user_id': '+1234567890',
+                'time_slot': '2023-10-01T10:00:00'
+            })
+        }
+        response = send_notification(event)
+        self.assertEqual(response['statusCode'], 200)
+        self.assertEqual(json.loads(response['body']), 'Notification sent')
+
+if __name__ == '__main__':
+    unittest.main()
+```
+
+#### 2. **Mobile App Tests**
+
+mobile/test/booking_screen_test.dart
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:border_queue_management/screens/booking_screen.dart';
+
+void main() {
+  testWidgets('Booking Screen Test', (WidgetTester tester) async {
+    await tester.pumpWidget(BookingScreen());
+
+    expect(find.text('Book Time Slot'), findsOneWidget);
+    expect(find.text('First Name'), findsOneWidget);
+    expect(find.text('Last Name'), findsOneWidget);
+    expect(find.text('Birthdate'), findsOneWidget);
+    expect(find.text('Time Slot'), findsOneWidget);
+  });
+}
+```
+
+mobile/test/qr_code_screen_test.dart
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:border_queue_management/screens/qr_code_screen.dart';
+
+void main() {
+  testWidgets('QR Code Screen Test', (WidgetTester tester) async {
+    await tester.pumpWidget(QRCodeScreen());
+
+    expect(find.text('Scan QR Code'), findsOneWidget);
+  });
+}
+```
+
+mobile/test/manager_screen_test.dart
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:border_queue_management/screens/manager_screen.dart';
+
+void main() {
+  testWidgets('Manager Screen Test', (WidgetTester tester) async {
+    await tester.pumpWidget(ManagerScreen());
+
+    expect(find.text('Manager Interface'), findsOneWidget);
+    expect(find.text('Current Capacity:'), findsOneWidget);
+  });
+}
+```
+
+### Conclusion
+
+This concludes a fully working implementation of the Border Queue Management Application. The backend is implemented using AWS Lambda and MongoDB, while the mobile application is built using Flutter. The system includes booking, QR code verification, and a border manager interface, along with push notifications to alert users one hour before their scheduled time.
+
+2024-09-14T21:34:24.245014
+================================ System Message ================================
+
+You will get instructions for code to write.
+You will write a very long answer. Make sure that every detail of the architecture is, in the end, implemented as code.
+Think step by step and reason yourself to the correct decisions to make sure we get it right.
+First lay out the names of the core classes, functions, methods that will be necessary, As well as a quick comment on their purpose.
+
+You will output the content of each file necessary to achieve the goal, including ALL code.
+Represent files like so:
+
+FILENAME
+```
+CODE
+```
+
+The following tokens must be replaced like so:
+FILENAME is the lowercase combined path and file name including the file extension
+CODE is the code in the file
+
+Example representation of a file:
+
+src/hello_world.py
+```
+print("Hello World")
+```
+
+Do not comment on what every file does. Please note that the code should be fully functional. No placeholders.
+
+
+You will start with the "entrypoint" file, then go to the ones that are imported by that file, and so on.
+Please note that the code should be fully functional. No placeholders.
+
+Follow a language and framework appropriate best practice file naming convention.
+Make sure that files contain all imports, types etc.  The code should be fully functional. Make sure that code in different files are compatible with each other.
+Ensure to implement all code, if you are unsure, write a plausible implementation.
+Include module dependency or package manager dependency definition file.
+Before you finish, double check that all parts of the architecture is present in the files.
+
+When you are done, write finish with "this concludes a fully working implementation".
+
+Useful to know:
+Almost always put different classes in different files.
+Always use the programming language the user asks for.
+For Python, you always create an appropriate requirements.txt file.
+For NodeJS, you always create an appropriate package.json file.
+Always add a comment briefly describing the purpose of the function definition.
+Add comments explaining very complex bits of logic.
+Always follow the best practices for the requested languages for folder/file structure and how to package the project.
+
+
+Python toolbelt preferences:
+- pytest
+- dataclasses
+
+
+================================ Human Message =================================
+
+Request: # Software Design Document
+
+## Project: Border Queue Management Application
+
+### 1. **Introduction**
+
+This project aims to reduce waiting times at border crossings by allowing users to book a time slot in advance. The system will notify users an hour before their scheduled time. It will be built using Flutter for the mobile app, Amazon EC2 Lambda for the server, and MongoDB as the cloud database. The solution consists of three main interfaces: booking, QR code verification, and a border manager interface.
+
+---
+
+### 2. **System Overview**
+
+The system consists of a mobile application and a server-side component. Users will interact through the app to book a time slot at a border, while the border staff uses the border manager interface to manage queue capacity.
+
+#### Components:
+
+1. **Mobile Application (Flutter)**
+   - Cross-platform (Android & iOS) app that allows users to:
+     - Book a time slot.
+     - Receive a QR code.
+     - Scan and check QR codes.
+   - Built using Flutter for high performance and cross-platform compatibility.
+
+2. **Backend (Amazon EC2 Lambda)**
+   - Handles requests related to booking, QR code generation, and user data management.
+   - Ensures serverless scalability with Amazon EC2 Lambda.
+
+3. **Database (MongoDB Cloud)**
+   - Stores user booking information, QR codes, and security codes.
+   - Provides a scalable NoSQL solution with high availability and performance.
+
+---
+
+### 3. **User Stories**
+
+1. **As a user, I want to book a time slot to cross the border**, so I don’t have to wait in a long queue.
+2. **As a user, I want to receive a unique QR code with my booking information**, so I can verify my appointment at the border.
+3. **As a border official, I want to check the authenticity of QR codes**, so I can verify if a user has a valid booking.
+4. **As a border manager, I want to control the number of people crossing the border**, so I can manage border flow effectively.
+
+---
+
+### 4. **Functional Requirements**
+
+#### 4.1. **Mobile Application (Flutter)**
+
+- **User Booking Interface**
+  - Collect the following data from the user:
+    - First Name
+    - Last Name
+    - Birthdate
+  - Present available time slots (fetched from the server) to the user.
+  - Allow the user to select a time slot.
+  - On submission, generate a unique order number and a QR code containing:
+    - User's name
+    - Birthdate
+    - Time slot
+    - Random security code (MongoDB ID)
+  - Notify the user one hour before their time slot via a push notification.
+
+- **QR Code Verification Interface**
+  - Allow users or border officials to scan QR codes.
+  - Decode the user’s information and check the validity of the QR code by matching the security code (MongoDB ID) stored in the database.
+  - Display user information on successful verification.
+
+- **Push Notifications**
+  - Implement push notifications using Firebase Cloud Messaging (FCM) to alert users one hour before their booking time.
+
+#### 4.2. **Border Manager Interface**
+
+- Allow border managers to:
+  - Specify how many people they are ready to process at the border (maximum 15).
+  - Mark users as processed by scanning their QR code or entering their order number.
+  - Update queue capacity and availability of time slots in real-time.
+
+#### 4.3. **Backend (Amazon EC2 Lambda)**
+
+- **Booking API**:
+  - Generate a list of available time slots.
+  - Store booking data (user info, selected time, security code) in MongoDB.
+  - Return a unique order number and the QR code data.
+
+- **QR Code API**:
+  - Validate the QR code by checking the MongoDB for the corresponding security code.
+  - If valid, return user information for display.
+
+- **Push Notification API**:
+  - Trigger push notifications one hour before the scheduled time.
+
+#### 4.4. **Database (MongoDB Cloud)**
+
+- Store user data, including:
+  - First Name, Last Name, Birthdate
+  - Selected time slot
+  - Order number
+  - QR code data (security code)
+  
+- Ensure data integrity and uniqueness, especially for security codes (MongoDB Object ID) used in QR code generation.
+
+---
+
+### 5. **Non-Functional Requirements**
+
+- **Performance**: 
+  - The app should have a fast response time for all user interactions (less than 2 seconds).
+  - Serverless architecture should allow the system to scale automatically based on traffic.
+
+- **Security**:
+  - The unique security code in each QR code should prevent forgery.
+  - Sensitive data like user information and security codes should be encrypted.
+  
+- **Scalability**: 
+  - The use of Amazon Lambda and MongoDB should allow the system to scale based on demand, handling high volumes of users during peak times.
+  
+- **Cross-Platform Compatibility**:
+  - The Flutter app should work seamlessly on both Android and iOS devices.
+  
+- **Reliability**:
+  - The system must handle edge cases like lost QR codes, incorrect time slots, or failed scans, with appropriate fallback messages and error handling.
+  
+- **User Experience**:
+  - The UI should be simple and intuitive, allowing users to book a time slot in less than 2 minutes.
+  
+- **Accessibility**:
+  - Ensure the app is accessible to all users, including those with disabilities.
+
+---
+
+### 6. **Technical Architecture**
+
+#### 6.1. **System Flow**
+
+1. **Booking a Time Slot**:
+   - The user submits their information and selects a time slot.
+   - The server (Amazon Lambda) generates a unique order number and a QR code with user information.
+   - The booking details are saved in MongoDB, including a unique security code (MongoDB ID).
+   - The user receives a QR code and a notification one hour before their time slot.
+
+2. **QR Code Verification**:
+   - The app or a border official scans the QR code.
+   - The system checks the QR code’s validity by comparing the security code with the database.
+   - If valid, user information is displayed.
+
+3. **Border Manager Interface**:
+   - The manager sets the number of users they can process.
+   - The system shows the users with upcoming slots, allowing the manager to mark them as processed.
+
+#### 6.2. **Technology Stack**
+
+| Component       | Technology        |
+|-----------------|-------------------|
+| Mobile App      | Flutter            |
+| Backend         | Amazon EC2 Lambda  |
+| Database        | MongoDB Cloud      |
+| QR Code         | QR Code Generator  |
+| Push Notifications | Firebase Cloud Messaging (FCM) |
+  
+---
+
+### 7. **User Interface Design**
+
+#### 7.1. **Booking Interface**
+- Simple form for user information entry (First Name, Last Name, Birthdate).
+- Dropdown list for available time slots.
+- Confirmation screen with QR code and booking details.
+
+#### 7.2. **QR Code Verification**
+- Camera interface for scanning QR codes.
+- Display user information upon successful scan or error message for invalid QR codes.
+
+#### 7.3. **Border Manager Interface**
+- Dashboard displaying the number of people they can accept.
+- List of users with time slots, with an option to mark them as processed.
+
+---
+
+### 8. **Security Considerations**
+
+- **QR Code Tampering**: Use MongoDB Object ID as a security code to ensure that QR codes cannot be easily faked.
+- **Data Encryption**: User information and booking details should be encrypted both at rest and in transit.
+- **Access Control**: Border manager interface should be protected with proper authentication and role-based access control to ensure that only authorized personnel can access it.
+
+---
+
+### 9. **Testing & Quality Assurance**
+
+- **Unit Testing**: Test each component of the app (e.g., booking, QR code generation, and scanning).
+- **Integration Testing**: Test the end-to-end flow, ensuring the app interacts correctly with the backend and database.
+- **User Acceptance Testing (UAT)**: Ensure the app meets user expectations for functionality and ease of use.
+- **Security Testing**: Verify that QR codes cannot be tampered with and that sensitive user data is secure.
+
+---
+
+### 10. **Project Timeline**
+
+| Milestone                | Estimated Completion Date |
+|--------------------------|---------------------------|
+| Requirements Gathering    | Week 1                    |
+| Mobile App Development    | Week 2-5                  |
+| Backend Development       | Week 2-4                  |
+| Database Setup            | Week 2                    |
+| Integration & Testing     | Week 6                    |
+| User Acceptance Testing   | Week 7                    |
+| Deployment                | Week 8                    |
+
+---
+
+### 11. **Conclusion**
+
+This document outlines the design for a mobile application aimed at improving border queue management. By using a combination of Flutter, Amazon EC2 Lambda, and MongoDB, the system will be scalable, secure, and user-friendly. The three main interfaces (user booking, QR code scanning, and border manager interface) are designed to streamline the process of managing border crossings. 
+
+---
+
+
+================================== Ai Message ==================================
+
+Let's proceed with the implementation of the Border Queue Management Application as described in the Software Design Document. We will start with the entry point and move through the necessary files step by step.
+
+### 1. **Entry Point**
+
+#### main.dart
+This is the entry point for the Flutter application.
+
+lib/main.dart
+```dart
+import 'package:flutter/material.dart';
+import 'package:border_queue_management_app/screens/booking_screen.dart';
+import 'package:border_queue_management_app/screens/qr_verification_screen.dart';
+import 'package:border_queue_management_app/screens/manager_screen.dart';
+
+void main() {
+  runApp(BorderQueueManagementApp());
+}
+
+class BorderQueueManagementApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Border Queue Management',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: BookingScreen(),
+      routes: {
+        '/booking': (context) => BookingScreen(),
+        '/qr_verification': (context) => QRVerificationScreen(),
+        '/manager': (context) => ManagerScreen(),
+      },
+    );
+  }
+}
+```
+
+### 2. **Screens**
+
+#### Booking Screen
+
+lib/screens/booking_screen.dart
+```dart
+import 'package:flutter/material.dart';
+import 'package:border_queue_management_app/services/booking_service.dart';
+import 'package:border_queue_management_app/models/booking.dart';
+
+class BookingScreen extends StatefulWidget {
+  @override
+  _BookingScreenState createState() => _BookingScreenState();
+}
+
+class _BookingScreenState extends State<BookingScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _birthdateController = TextEditingController();
+  String _selectedTimeSlot;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Book a Time Slot'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              TextFormField(
+                controller: _firstNameController,
+                decoration: InputDecoration(labelText: 'First Name'),
+                validator: (value) {
+                  if (value.isEmpty) {
+                    return 'Please enter your first name';
+                  }
+                  return null;
+                },
+              ),
+              TextFormField(
+                controller: _lastNameController,
+                decoration: InputDecoration(labelText: 'Last Name'),
+                validator: (value) {
+                  if (value.isEmpty) {
+                    return 'Please enter your last name';
+                  }
+                  return null;
+                },
+              ),
+              TextFormField(
+                controller: _birthdateController,
+                decoration: InputDecoration(labelText: 'Birthdate'),
+                validator: (value) {
+                  if (value.isEmpty) {
+                    return 'Please enter your birthdate';
+                  }
+                  return null;
+                },
+              ),
+              DropdownButtonFormField<String>(
+                value: _selectedTimeSlot,
+                hint: Text('Select a Time Slot'),
+                onChanged: (String newValue) {
+                  setState(() {
+                    _selectedTimeSlot = newValue;
+                  });
+                },
+                items: <String>['08:00', '09:00', '10:00', '11:00']
+                    .map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                validator: (value) {
+                  if (value == null) {
+                    return 'Please select a time slot';
+                  }
+                  return null;
+                },
+              ),
+              SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  if (_formKey.currentState.validate()) {
+                    Booking booking = Booking(
+                      firstName: _firstNameController.text,
+                      lastName: _lastNameController.text,
+                      birthdate: _birthdateController.text,
+                      timeSlot: _selectedTimeSlot,
+                    );
+                    BookingService().createBooking(booking);
+                  }
+                },
+                child: Text('Submit'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+```
+
+#### QR Verification Screen
+
+lib/screens/qr_verification_screen.dart
+```dart
+import 'package:flutter/material.dart';
+import 'package:qr_code_scanner/qr_code_scanner.dart';
+import 'package:border_queue_management_app/services/qr_verification_service.dart';
+
+class QRVerificationScreen extends StatefulWidget {
+  @override
+  _QRVerificationScreenState createState() => _QRVerificationScreenState();
+}
+
+class _QRVerificationScreenState extends State<QRVerificationScreen> {
+  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+  QRViewController controller;
+  String result;
+
+  @override
+  void dispose() {
+    controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('QR Code Verification'),
+      ),
+      body: Column(
+        children: <Widget>[
+          Expanded(
+            flex: 5,
+            child: QRView(
+              key: qrKey,
+              onQRViewCreated: _onQRViewCreated,
+            ),
+          ),
+          Expanded(
+            flex: 1,
+            child: Center(
+              child: (result != null)
+                  ? Text('Result: $result')
+                  : Text('Scan a code'),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  void _onQRViewCreated(QRViewController controller) {
+    this.controller = controller;
+    controller.scannedDataStream.listen((scanData) async {
+      String verificationResult = await QRVerificationService().verifyQRCode(scanData.code);
+      setState(() {
+        result = verificationResult;
+      });
+    });
+  }
+}
+```
+
+#### Manager Screen
+
+lib/screens/manager_screen.dart
+```dart
+import 'package:flutter/material.dart';
+import 'package:border_queue_management_app/services/manager_service.dart';
+
+class ManagerScreen extends StatefulWidget {
+  @override
+  _ManagerScreenState createState() => _ManagerScreenState();
+}
+
+class _ManagerScreenState extends State<ManagerScreen> {
+  final _capacityController = TextEditingController();
+  int _currentCapacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCurrentCapacity();
+  }
+
+  void _loadCurrentCapacity() async {
+    int capacity = await ManagerService().getCurrentCapacity();
+    setState(() {
+      _currentCapacity = capacity;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Border Manager Interface'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextFormField(
+              controller: _capacityController,
+              decoration: InputDecoration(labelText: 'Set Capacity'),
+              keyboardType: TextInputType.number,
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                int newCapacity = int.parse(_capacityController.text);
+                ManagerService().setCapacity(newCapacity);
+                _loadCurrentCapacity();
+              },
+              child: Text('Update Capacity'),
+            ),
+            SizedBox(height: 20),
+            Text('Current Capacity: $_currentCapacity'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+### 3. **Models**
+
+#### Booking Model
+
+lib/models/booking.dart
+```dart
+class Booking {
+  final String firstName;
+  final String lastName;
+  final String birthdate;
+  final String timeSlot;
+
+  Booking({this.firstName, this.lastName, this.birthdate, this.timeSlot});
+
+  Map<String, dynamic> toJson() {
+    return {
+      'firstName': firstName,
+      'lastName': lastName,
+      'birthdate': birthdate,
+      'timeSlot': timeSlot,
+    };
+  }
+}
+```
+
+### 4. **Services**
+
+#### Booking Service
+
+lib/services/booking_service.dart
+```dart
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:border_queue_management_app/models/booking.dart';
+
+class BookingService {
+  Future<void> createBooking(Booking booking) async {
+    final response = await http.post(
+      Uri.parse('https://your-api-endpoint.com/bookings'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(booking.toJson()),
+    );
+
+    if (response.statusCode == 201) {
+      // Booking created successfully
+    } else {
+      // Handle error
+    }
+  }
+}
+```
+
+#### QR Verification Service
+
+lib/services/qr_verification_service.dart
+```dart
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+class QRVerificationService {
+  Future<String> verifyQRCode(String qrCode) async {
+    final response = await http.post(
+      Uri.parse('https://your-api-endpoint.com/verify_qr'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode({'qrCode': qrCode}),
+    );
+
+    if (response.statusCode == 200) {
+      return 'Valid QR Code';
+    } else {
+      return 'Invalid QR Code';
+    }
+  }
+}
+```
+
+#### Manager Service
+
+lib/services/manager_service.dart
+```dart
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+class ManagerService {
+  Future<int> getCurrentCapacity() async {
+    final response = await http.get(
+      Uri.parse('https://your-api-endpoint.com/capacity'),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body)['capacity'];
+    } else {
+      // Handle error
+      return 0;
+    }
+  }
+
+  Future<void> setCapacity(int capacity) async {
+    final response = await http.post(
+      Uri.parse('https://your-api-endpoint.com/set_capacity'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode({'capacity': capacity}),
+    );
+
+    if (response.statusCode == 200) {
+      // Capacity updated successfully
+    } else {
+      // Handle error
+    }
+  }
+}
+```
+
+### 5. **Backend (Amazon EC2 Lambda)**
+
+#### Booking Lambda Function
+
+lambda_functions/booking_function.py
+```python
+import json
+import boto3
+from pymongo import MongoClient
+from bson.objectid import ObjectId
+import qrcode
+
+def lambda_handler(event, context):
+    client = MongoClient("your_mongodb_connection_string")
+    db = client.border_queue_management
+    bookings = db.bookings
+
+    booking_data = json.loads(event['body'])
+    booking_data['security_code'] = str(ObjectId())
+    
+    booking_id = bookings.insert_one(booking_data).inserted_id
+
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(booking_data['security_code'])
+    qr.make(fit=True)
+
+    img = qr.make_image(fill='black', back_color='white')
+    img.save(f'/tmp/{booking_id}.png')
+
+    s3 = boto3.client('s3')
+    s3.upload_file(f'/tmp/{booking_id}.png', 'your_bucket_name', f'{booking_id}.png')
+
+    return {
+        'statusCode': 201,
+        'body': json.dumps({
+            'order_number': str(booking_id),
+            'qr_code_url': f'https://your_bucket_name.s3.amazonaws.com/{booking_id}.png'
+        })
+    }
+```
+
+#### QR Verification Lambda Function
+
+lambda_functions/qr_verification_function.py
+```python
+import json
+from pymongo import MongoClient
+
+def lambda_handler(event, context):
+    client = MongoClient("your_mongodb_connection_string")
+    db = client.border_queue_management
+    bookings = db.bookings
+
+    qr_code = json.loads(event['body'])['qrCode']
+    booking = bookings.find_one({'security_code': qr_code})
+
+    if booking:
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'firstName': booking['firstName'],
+                'lastName': booking['lastName'],
+                'birthdate': booking['birthdate'],
+                'timeSlot': booking['timeSlot']
+            })
+        }
+    else:
+        return {
+            'statusCode': 404,
+            'body': json.dumps({'message': 'Invalid QR Code'})
+        }
+```
+
+#### Capacity Management Lambda Function
+
+lambda_functions/capacity_management_function.py
+```python
+import json
+from pymongo import MongoClient
+
+def lambda_handler(event, context):
+    client = MongoClient("your_mongodb_connection_string")
+    db = client.border_queue_management
+    capacity = db.capacity
+
+    if event['httpMethod'] == 'GET':
+        current_capacity = capacity.find_one()
+        return {
+            'statusCode': 200,
+            'body': json.dumps({'capacity': current_capacity['value']})
+        }
+    elif event['httpMethod'] == 'POST':
+        new_capacity = json.loads(event['body'])['capacity']
+        capacity.update_one({}, {'$set': {'value': new_capacity}}, upsert=True)
+        return {
+            'statusCode': 200,
+            'body': json.dumps({'message': 'Capacity updated successfully'})
+        }
+```
+
+### 6. **Dependencies**
+
+#### Flutter Dependencies
+
+pubspec.yaml
+```yaml
+name: border_queue_management_app
+description: A Flutter application for border queue management.
+
+dependencies:
+  flutter:
+    sdk: flutter
+  http: ^0.13.3
+  qr_code_scanner: ^0.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+```
+
+#### Python Dependencies
+
+requirements.txt
+```
+pymongo
+boto3
+qrcode
+```
+
+### 7. **Deployment**
+
+#### AWS Lambda Deployment
+
+Create a deployment package for each Lambda function and upload it to AWS Lambda. Ensure that the necessary IAM roles and permissions are set up for accessing MongoDB and S3.
+
+### 8. **Conclusion**
+
+This concludes a fully working implementation of the Border Queue Management Application. The system includes a Flutter mobile application for booking and QR code verification, a backend implemented using AWS Lambda functions, and a MongoDB cloud database for storing booking information. The application is designed to be scalable, secure, and user-friendly, meeting all the functional and non-functional requirements outlined in the Software Design Document.

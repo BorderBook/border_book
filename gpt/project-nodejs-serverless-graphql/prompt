@@ -1,0 +1,211 @@
+# Software Design Document: Border Crossing Queue Management System with GraphQL
+
+## 1. Introduction
+
+This document provides a comprehensive design for a mobile application that aims to manage border crossing queues by allowing users to book time slots and receive notifications. The system will be developed using Flutter for the mobile app, Amazon EC2 Lambda for the server-side logic, and MongoDB Cloud for data storage. Node.js and the Serverless framework will be used for implementing the server, with **GraphQL** as the communication layer between the client application and the server.
+
+The goal of the application is to reduce wait times at the border by allowing users to reserve time slots in advance. A QR code will be generated for each booking, containing user details and a security code. Border officials will use a separate interface to manage capacity and process travelers.
+
+### Key Features:
+
+1. **User Booking Interface**: Allows users to book time slots, generate an order number, and receive a QR code.
+2. **QR Code Checking Interface**: Allows users and officials to scan QR codes to view booking details.
+3. **Border Manager Interface**: Allows border officials to manage capacity and process travelers.
+
+---
+
+## 2. System Architecture
+
+### 2.1. **Architecture Overview**
+
+The system consists of three main components:
+
+1. **Mobile Application**: Built using Flutter, this app will interact with the server through **GraphQL APIs** hosted on AWS Lambda.
+2. **Server-Side Logic**: Implemented using Node.js, GraphQL will serve as the communication layer. The backend will be deployed on AWS Lambda via the Serverless framework.
+3. **Database**: MongoDB Cloud will store user booking data, including personal details, booking time, QR codes, and security codes.
+
+### 2.2. **Component Diagram**
+
+- **Flutter Mobile App**: User Interface for booking, QR code checking, and border manager functions.
+- **GraphQL API (AWS Lambda)**: Handles booking creation, QR code generation, booking validation, and capacity management.
+- **MongoDB Cloud**: Stores user data, booking details, and security codes.
+
+---
+
+## 3. Mobile Application Design
+
+### 3.1. **User Booking Interface**
+
+**Purpose**: Allows users to enter personal details, select a time slot, and receive a QR code.
+
+- **Data Input**:
+  - First Name
+  - Last Name
+  - Birthdate
+  - Selected time from available slots
+- **Output**:
+  - Order number (auto-incremented)
+  - QR code containing:
+    - User’s name
+    - Birthdate
+    - Selected time slot
+    - Unique security code (MongoDB ID)
+  - Confirmation message with booking details
+- **Data Flow**:
+  1. User inputs data.
+  2. The mobile app sends a **GraphQL mutation** to the server to create a new booking.
+  3. Server generates the order number, security code, and QR code.
+  4. Booking information is saved in MongoDB.
+  5. QR code and confirmation are sent back to the mobile app for display.
+
+### 3.2. **QR Code Checking Interface**
+
+**Purpose**: Allows anyone with the app to scan and validate QR codes.
+
+- **Data Input**:
+  - QR code scanned by the app.
+- **Output**:
+  - Decoded information (Name, Birthdate, Booking time).
+  - Security code verification.
+- **Data Flow**:
+  1. The user scans a QR code.
+  2. The app decodes the QR code and sends a **GraphQL query** with the security code to the server.
+  3. The server verifies the security code against the MongoDB entry.
+  4. If valid, booking details are displayed.
+
+### 3.3. **Border Manager Interface**
+
+**Purpose**: Allows border officials to manage the flow of travelers by specifying the number of people they can process.
+
+- **Data Input**:
+  - Number of people allowed to cross (up to 15).
+  - QR code or order number.
+- **Output**:
+  - Confirmation of processed users.
+  - Updated queue capacity.
+- **Data Flow**:
+  1. The official sets the number of people that can be processed at the border.
+  2. The official scans a traveler’s QR code or enters their order number.
+  3. The server validates the booking through a **GraphQL mutation**.
+  4. The traveler is marked as processed, and the system updates the capacity.
+
+---
+
+## 4. Server-Side Design
+
+### 4.1. **GraphQL API**
+
+The system will expose a GraphQL API to handle all client-server communication. The following GraphQL queries and mutations will be implemented using Node.js and deployed on AWS Lambda via the Serverless framework:
+
+1. **Mutation: createBooking**
+
+   - **Description**: Creates a new booking with the user’s details, time slot, and a unique security code.
+   - **Input**: FirstName, LastName, Birthdate, SelectedTimeSlot
+   - **Output**: OrderNumber, QRCode, SecurityCode
+   - **Functionality**:
+     - Generate an order number.
+     - Create a unique security code (MongoDB ObjectID).
+     - Generate a QR code containing the user’s details and security code.
+     - Store the booking in MongoDB.
+
+2. **Query: validateBooking**
+
+   - **Description**: Validates the QR code by checking the security code.
+   - **Input**: QRCode (with SecurityCode)
+   - **Output**: BookingDetails (if valid) or ErrorMessage (if invalid).
+   - **Functionality**:
+     - Decode the QR code.
+     - Check the security code against the MongoDB entry.
+     - Return the booking details if valid.
+
+3. **Mutation: processBooking**
+   - **Description**: Marks a user as processed by the border manager and updates the capacity.
+   - **Input**: OrderNumber or QRCode, CapacityCount
+   - **Output**: Success/Failure message.
+   - **Functionality**:
+     - Mark the user as processed.
+     - Update the available capacity for processing.
+
+### 4.2. **Security Considerations**
+
+- **Authentication & Authorization**:
+  - The **Border Manager Interface** will have a login system to restrict access to border officials.
+  - JWT tokens will be used to manage session states.
+- **QR Code Security**:
+  - A unique, random security code (MongoDB ObjectID) will be embedded in the QR code and checked against the database during validation.
+  - MongoDB IDs are hard to guess or fake, adding an extra layer of security.
+
+---
+
+## 5. Database Design
+
+### 5.1. **Collections and Schemas**
+
+The MongoDB database will consist of the following collections:
+
+1. **Bookings Collection**:
+
+   - **Fields**:
+     - `_id`: MongoDB ObjectID (serves as the security code)
+     - `firstName`: String
+     - `lastName`: String
+     - `birthdate`: Date
+     - `selectedTime`: DateTime
+     - `orderNumber`: Integer (auto-incremented)
+     - `processed`: Boolean (default false)
+
+2. **Capacity Collection**:
+   - **Fields**:
+     - `date`: DateTime (current date)
+     - `maxCapacity`: Integer (maximum number of travelers for the day)
+     - `currentCount`: Integer (current number of processed travelers)
+
+---
+
+## 6. User Flows
+
+### 6.1. **Booking Flow**:
+
+1. User opens the app and navigates to the booking screen.
+2. User inputs personal details and selects an available time slot.
+3. The system generates an order number and QR code.
+4. User receives confirmation along with the QR code.
+
+### 6.2. **QR Code Validation Flow**:
+
+1. User scans the QR code via the app.
+2. The app decodes the QR code and sends a **GraphQL query** with the security code to the server.
+3. The server checks the security code in the database.
+4. If valid, the booking details are displayed.
+
+### 6.3. **Border Manager Flow**:
+
+1. Border manager sets the daily capacity for processing travelers.
+2. Manager scans a traveler’s QR code or inputs their order number.
+3. The system validates the booking through a **GraphQL mutation** and marks the traveler as processed.
+4. The capacity is updated.
+
+---
+
+## 7. Non-Functional Requirements
+
+### 7.1. **Performance**:
+
+- The app should handle high traffic efficiently, with a goal to keep response times under 2 seconds for booking and validation operations.
+- AWS Lambda will be configured to auto-scale based on demand.
+
+### 7.2. **Scalability**:
+
+- MongoDB will be used as a cloud-based, horizontally scalable database.
+- Serverless architecture (AWS Lambda) ensures that the system can scale based on traffic without additional infrastructure management.
+
+### 7.3. **Security**:
+
+- All communication between the app, server, and database will be encrypted using HTTPS and TLS.
+- User data, especially security codes, will be securely stored in MongoDB with access restricted by roles (read/write permissions).
+
+---
+
+## 8. Conclusion
+
+This design document outlines the architecture, components, and flows necessary to implement a border-crossing queue management system. The mobile app, powered by Flutter, will provide three key interfaces: user booking, QR code validation, and border management. AWS Lambda, GraphQL, and MongoDB will be used to build a scalable, serverless back-end. This document serves as the sole source of truth for the development of this system.

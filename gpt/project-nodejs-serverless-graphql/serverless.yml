@@ -1,0 +1,24 @@
+service: border-crossing-queue-management
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  region: us-east-1
+
+functions:
+  graphql:
+    handler: index.handler
+    events:
+      - http:
+          path: graphql
+          method: post
+      - http:
+          path: graphql
+          method: get
+
+plugins:
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    port: 3000
