@@ -1,0 +1,25 @@
+{
+  "name": "stop-waiting",
+  "type": "module",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "deploy": "npm run build && serverless deploy"
+  },
+  "author": "Artem Korolev",
+  "license": "MIT",
+  "dependencies": {
+    "@apollo/server": "^4.11.0",
+    "@as-integrations/aws-lambda": "^3.1.0",
+    "@aws-sdk/client-dynamodb": "3.656.0",
+    "@aws-sdk/lib-dynamodb": "3.656.0",
+    "graphql": "^16.9.0"
+  },
+  "devDependencies": {
+    "serverless": "^4.4.0"
+  },
+  "overrides.bak": {
+    "tar": "6.2.1",
+    "node.extend": "1.1.7"
+  }
+}

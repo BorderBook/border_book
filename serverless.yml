@@ -1,0 +1,93 @@
+# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+org: prorokxp
+# "service" is the name of this project. This will also be added to your AWS resource names.
+service: stop-waiting
+
+stages:
+  default:
+    params:
+      tableName: "queue-table-${sls:stage}" # Main queue table
+      sequenceTableName: "sequence-table-${sls:stage}" # Sequence table for auto-incrementing order numbers
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: eu-central-1
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:Scan
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+          Resource:
+            - Fn::GetAtt: [QueueTable, Arn]
+            - Fn::GetAtt: [SequenceTable, Arn] # Allow access to the sequence table
+  environment:
+    QUEUE_TABLE: ${param:tableName} # Environment variable for the queue table name
+    SEQUENCE_TABLE: ${param:sequenceTableName} # Environment variable for the sequence table name
+
+# functions:
+#   graphql:
+#     handler: src/handlers/paymentHandler.handler
+#     events:
+#       - http:
+#           path: graphql
+#           method: post
+
+#   adyenCallback:
+#     handler: src/handlers/adyenCallbackHandler.handler
+#     events:
+#       - http:
+#           path: adyen/callback
+#           method: post
+
+functions:
+  graphql:
+    # Make sure your file path is correct!
+    # (e.g., if your file is in the root folder use server.graphqlHandler )
+    # The format is: <FILENAME>.<HANDLER>
+    handler: src/server.graphqlHandler
+    events:
+      - httpApi:
+          path: /
+          method: POST
+      - httpApi:
+          path: /
+          method: GET
+
+resources:
+  Resources:
+    # Definition of the queue table where the entries are stored
+    QueueTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: security_code
+            AttributeType: S
+          - AttributeName: order
+            AttributeType: N
+        KeySchema:
+          - AttributeName: security_code
+            KeyType: HASH # Partition key
+          - AttributeName: order
+            KeyType: RANGE # Sort key
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${param:tableName}
+
+    # Definition of the sequence table to track the last used order number
+    SequenceTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH # Partition key (unique identifier for the sequence)
+        BillingMode: PAY_PER_REQUEST
+        TableName: ${param:sequenceTableName}

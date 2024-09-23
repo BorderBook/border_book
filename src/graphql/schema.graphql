@@ -1,0 +1,12 @@
+type Query {
+  healthCheck: String!
+}
+
+type Mutation {
+  createPayment(amount: Int!): PaymentResponse!
+}
+
+type PaymentResponse {
+  url: String!
+  message: String!
+}
