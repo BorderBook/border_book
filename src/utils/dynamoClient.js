@@ -1,14 +1,23 @@
 // src/utils/dynamoClient.js
 // Import necessary components from AWS SDK v3
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import {
+  DynamoDBDocumentClient,
+  GetCommand,
+  PutCommand,
+  UpdateCommand,
+} from "@aws-sdk/lib-dynamodb";
 
 // Initialize the low-level DynamoDB client
-const client = new DynamoDBClient();
+const client = new DynamoDBClient({
+  region: process.env.AWS_REGION || "eu-central-1", // Specify your AWS region
+  endpoint: process.env.DYNAMODB_ENDPOINT || undefined, // Specify endpoint if using local DynamoDB
+});
 
 // Create the DocumentClient with additional options if needed
 const dynamoDb = DynamoDBDocumentClient.from(client);
 
+// Function to save payment data to DynamoDB
 const savePaymentToDynamoDB = async (pspReference) => {
   const params = {
     TableName: process.env.DYNAMODB_TABLE,
@@ -19,7 +28,13 @@ const savePaymentToDynamoDB = async (pspReference) => {
     },
   };
 
-  await dynamoDb.put(params).promise();
+  try {
+    await dynamoDb.send(new PutCommand(params));
+    console.log("Payment saved successfully.");
+  } catch (error) {
+    console.error("Error saving payment to DynamoDB:", error);
+    throw new Error("Failed to save payment.");
+  }
 };
 
 const QUEUE_TABLE = process.env.QUEUE_TABLE;
@@ -38,7 +53,7 @@ export async function getNextOrder() {
 
   try {
     // Atomic update: reads and increments the order_value atomically
-    const result = await dynamoDb.update(params).promise();
+    const result = await dynamoDb.send(new UpdateCommand(params));
     return result.Attributes.order_value; // Returns the new incremented value
   } catch (error) {
     console.error("Error incrementing order value:", error);
@@ -63,10 +78,15 @@ export const addEntry = async (event) => {
     },
   };
 
-  await dynamoDb.put(params).promise();
-
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ message: "Entry added", order }),
-  };
+  try {
+    await dynamoDb.send(new PutCommand(params));
+    console.log("Entry added successfully.");
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ message: "Entry added", order }),
+    };
+  } catch (error) {
+    console.error("Error adding entry to queue:", error);
+    throw new Error("Failed to add entry.");
+  }
 };
