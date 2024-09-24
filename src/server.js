@@ -1,8 +1,11 @@
 // src/server.js
 
-import { ApolloServer } from '@apollo/server';
-import { startServerAndCreateLambdaHandler, handlers } from '@as-integrations/aws-lambda';
-import { getNextOrder } from './utils/dynamoClient.js';
+import { ApolloServer } from "@apollo/server";
+import {
+  startServerAndCreateLambdaHandler,
+  handlers,
+} from "@as-integrations/aws-lambda";
+import { getNextOrder } from "./utils/dynamoClient.js";
 
 // Define your type definitions and resolvers
 const typeDefs = `#graphql
@@ -14,15 +17,15 @@ const typeDefs = `#graphql
 
 const resolvers = {
   Query: {
-    hello: () => 'world',
+    hello: () => "world",
     nextOrder: async () => {
       // Call the getNextOrder function to test DynamoDB integration
       try {
         const order = await getNextOrder();
         return order;
       } catch (error) {
-        console.error('Error fetching the next order:', error);
-        throw new Error('Failed to fetch the next order');
+        console.error("Error fetching the next order:", error);
+        throw new Error("Failed to fetch the next order");
       }
     },
   },
