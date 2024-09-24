@@ -91,3 +91,11 @@ resources:
             KeyType: HASH # Partition key (unique identifier for the sequence)
         BillingMode: PAY_PER_REQUEST
         TableName: ${param:sequenceTableName}
+
+package:
+  individually: true
+
+build:
+  esbuild:
+    bundle: true
+    minify: true

@@ -1,11 +1,11 @@
-const { ApolloServer } = require('@apollo/server');
-const { startServerAndCreateLambdaHandler } = require('@as-integrations/aws-lambda');
-const typeDefs = require('../graphql/schema.graphql');
-const resolvers = require('../graphql/resolvers');
+import { ApolloServer } from "@apollo/server";
+import { startServerAndCreateLambdaHandler } from "@as-integrations/aws-lambda";
+import typeDefs from "../graphql/schema.graphql"; // Assuming schema.graphql is handled as an importable module
+import resolvers from "../graphql/resolvers"; // Ensure resolvers are exported correctly as a default export
 
 const server = new ApolloServer({
-    typeDefs,
-    resolvers,
+  typeDefs,
+  resolvers,
 });
 
-exports.handler = startServerAndCreateLambdaHandler(server);
+export const handler = startServerAndCreateLambdaHandler(server);

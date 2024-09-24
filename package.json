@@ -1,10 +1,9 @@
 {
   "name": "stop-waiting",
-  "type": "module",
   "version": "1.0.0",
   "description": "",
   "scripts": {
-    "deploy": "npm run build && serverless deploy"
+    "deploy": "npx serverless deploy"
   },
   "author": "Artem Korolev",
   "license": "MIT",
@@ -16,10 +15,6 @@
     "graphql": "^16.9.0"
   },
   "devDependencies": {
-    "serverless": "^4.4.0"
-  },
-  "overrides.bak": {
-    "tar": "6.2.1",
-    "node.extend": "1.1.7"
+    "serverless": "4.4.1"
   }
 }

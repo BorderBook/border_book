@@ -1,25 +1,25 @@
-const { savePaymentToDynamoDB } = require('../utils/dynamoClient');
+import { savePaymentToDynamoDB } from "../utils/dynamoClient.mjs"; // Import using ESM syntax
 
-exports.handler = async (event) => {
-    try {
-        const { notificationItems } = JSON.parse(event.body);
+export const handler = async (event) => {
+  try {
+    const { notificationItems } = JSON.parse(event.body);
 
-        for (const item of notificationItems) {
-            const { success, pspReference } = item.NotificationRequestItem;
+    for (const item of notificationItems) {
+      const { success, pspReference } = item.NotificationRequestItem;
 
-            if (success) {
-                await savePaymentToDynamoDB(pspReference);
-            }
-        }
-
-        return {
-            statusCode: 200,
-            body: JSON.stringify({ message: 'Notification processed' }),
-        };
-    } catch (error) {
-        return {
-            statusCode: 500,
-            body: JSON.stringify({ message: 'Error processing notification' }),
-        };
+      if (success) {
+        await savePaymentToDynamoDB(pspReference);
+      }
     }
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ message: "Notification processed" }),
+    };
+  } catch (error) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ message: "Error processing notification" }),
+    };
+  }
 };
