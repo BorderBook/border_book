@@ -32,7 +32,7 @@ jobs:
       - name: Authenticate with Serverless
         env:
           SERVERLESS_ACCESS_KEY: ${{ secrets.SERVERLESS_ACCESS_KEY }}
-        run: npx serverless config credentials --provider aws --key $SERVERLESS_ACCESS_KEY
+        run: npx serverless login
 
       - name: Set deployment stage
         id: set-stage
