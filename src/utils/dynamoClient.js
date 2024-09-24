@@ -1,7 +1,13 @@
 // src/utils/dynamoClient.js
-import AWS from "aws-sdk";
+// Import necessary components from AWS SDK v3
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 
-const dynamoDb = new AWS.DynamoDB.DocumentClient();
+// Initialize the low-level DynamoDB client
+const client = new DynamoDBClient();
+
+// Create the DocumentClient with additional options if needed
+const dynamoDb = DynamoDBDocumentClient.from(client);
 
 const savePaymentToDynamoDB = async (pspReference) => {
   const params = {
